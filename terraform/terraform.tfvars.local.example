@@ -1,0 +1,16 @@
+# Nema Sandbox Terraform Local Variables - Example
+# Copy this file to terraform.tfvars.local and update with your values
+
+# Cognito Configuration (from existing deployment)
+cognito_user_pool_id      = "your-cognito-user-pool-id"
+cognito_app_client_id     = "your-cognito-app-client-id"
+cognito_app_client_secret = "your-cognito-app-client-secret"
+
+# Database Configuration
+db_password = "your-secure-database-password"
+
+# JWT Secret
+jwt_secret = "your-jwt-secret-key"
+
+# AWS Profile Configuration
+aws_profile = "your-aws-profile"

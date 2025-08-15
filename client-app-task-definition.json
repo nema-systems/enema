@@ -1,0 +1,51 @@
+{
+  "family": "nema-sandbox-production-client-app",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::545365949069:role/nema-sandbox-production-ecs-co-ECSTaskExecutionRole-ShbrJrahe08n",
+  "taskRoleArn": "arn:aws:iam::545365949069:role/nema-sandbox-production-ecs-core-ECSTaskRole-5REvCFPGgHPT",
+  "containerDefinitions": [
+    {
+      "name": "client-app",
+      "image": "545365949069.dkr.ecr.us-west-2.amazonaws.com/nema-sandbox/production/client-app:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "VITE_API_URL",
+          "value": "http://nema-sandbox-production-alb-1856053936.us-west-2.elb.amazonaws.com"
+        },
+        {
+          "name": "VITE_COGNITO_USER_POOL_ID", 
+          "value": "us-west-2_nvN2VktDO"
+        },
+        {
+          "name": "VITE_COGNITO_APP_CLIENT_ID",
+          "value": "43pmp98k4n1fsinljt1lmgcjm4"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/nema-sandbox-production-client-app",
+          "awslogs-region": "us-west-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}

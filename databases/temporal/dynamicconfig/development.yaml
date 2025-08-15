@@ -1,0 +1,61 @@
+# Temporal Dynamic Configuration for Development
+# This file contains runtime configuration that can be changed without restarting the server
+
+# Frontend service configuration
+frontend.enableClientVersionCheck:
+  - value: false
+
+# History service configuration  
+history.defaultActivityRetryPolicy:
+  - value:
+      InitialIntervalInSeconds: 1
+      MaximumIntervalInSeconds: 100
+      BackoffCoefficient: 2.0
+      MaximumAttempts: 0
+
+history.defaultWorkflowRetryPolicy:
+  - value:
+      InitialIntervalInSeconds: 1
+      MaximumIntervalInSeconds: 100
+      BackoffCoefficient: 2.0
+      MaximumAttempts: 0
+
+# Matching service configuration
+matching.numTaskqueueReadPartitions:
+  - value: 4
+
+matching.numTaskqueueWritePartitions:
+  - value: 4
+
+# Worker service configuration
+worker.enableReplicateLocalGeneratedEventBatching:
+  - value: true
+
+# System limits
+limit.maxIDLength:
+  - value: 1000
+
+limit.maxNamespaceNameLength:
+  - value: 1000
+
+# Development-specific settings
+system.enableActivityEagerExecution:
+  - value: true
+
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+
+# Archival settings (disabled for development)
+archival.history.state:
+  - value: "disabled"
+
+archival.visibility.state:
+  - value: "disabled"
+
+# Advanced visibility (disabled for simplicity)
+system.advancedVisibilityWritingMode:
+  - value: "off"
+
+# Enable SQL advanced visibility for better queries (optional)
+system.enableReadFromSecondaryAdvancedVisibility:
+  - value: false

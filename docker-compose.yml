@@ -1,0 +1,170 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: nema-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nema}
+      POSTGRES_USER: ${POSTGRES_USER:-nema}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nema_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./databases/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nema}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  temporal:
+    image: temporalio/auto-setup:1.21.0
+    container_name: nema-temporal
+    restart: unless-stopped
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-nema}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-nema_password}
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+    volumes:
+      - ./databases/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "workflow", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  temporal-webui:
+    image: temporalio/ui:2.21.3
+    container_name: nema-temporal-webui
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:8088
+    depends_on:
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nema-core:
+    build:
+      context: ./services/nema-core
+      dockerfile: Dockerfile
+    container_name: nema-core
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-nema}:${POSTGRES_PASSWORD:-nema_password}@postgres:5432/${POSTGRES_DB:-nema}
+      - TEMPORAL_HOST=temporal
+      - TEMPORAL_PORT=7233
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
+      - COGNITO_APP_CLIENT_SECRET=${COGNITO_APP_CLIENT_SECRET}
+      - MOCK_AUTH_ENABLED=${MOCK_AUTH_ENABLED:-true}
+    volumes:
+      - ./services/nema-core:/app
+      - /app/__pycache__
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  client-app:
+    build:
+      context: ./clients/client-app
+      dockerfile: Dockerfile
+    container_name: nema-client-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - VITE_COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
+    volumes:
+      - ./clients/client-app:/app
+      - /app/node_modules
+    depends_on:
+      nema-core:
+        condition: service_healthy
+
+  client-admin:
+    build:
+      context: ./clients/client-admin
+      dockerfile: Dockerfile
+    container_name: nema-client-admin
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - VITE_COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
+    volumes:
+      - ./clients/client-admin:/app
+      - /app/node_modules
+    depends_on:
+      nema-core:
+        condition: service_healthy
+
+  client-landing:
+    build:
+      context: ./clients/client-landing
+      dockerfile: Dockerfile
+    container_name: nema-client-landing
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./clients/client-landing:/app
+      - /app/node_modules
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: nema-api-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - nema-core
+      - client-app
+      - client-admin
+      - client-landing
+    profiles: ["production"]
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: nema-network

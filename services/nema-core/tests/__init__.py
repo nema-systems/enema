@@ -1,0 +1,1 @@
+# Test package for nema-core service
