@@ -1,12 +1,55 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+  useUser,
+  useAuth,
+} from "@clerk/clerk-react";
 
 function App() {
-  const [authInfo, setAuthInfo] = useState<any>(null);
-  const [mockUsers, setMockUsers] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
+  return (
+    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+      <header style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "20px",
+      }}>
+        <h1>Nema Sandbox</h1>
+        <div>
+          <SignedOut>
+            <SignInButton />
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </div>
+      </header>
+
+      <SignedOut>
+        <div style={{
+          textAlign: "center",
+          padding: "40px",
+          backgroundColor: "#f0f8ff",
+          borderRadius: "8px",
+        }}>
+          <h2>Welcome to Nema Sandbox</h2>
+          <p>Please sign in to access the dashboard</p>
+        </div>
+      </SignedOut>
+
+      <SignedIn>
+        <Dashboard />
+      </SignedIn>
+    </div>
   );
-  const [user, setUser] = useState<any>(null);
+}
+
+function Dashboard() {
+  const { user } = useUser();
+  const { getToken } = useAuth();
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [showArtifacts, setShowArtifacts] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
@@ -15,6 +58,7 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const fetchProjects = async () => {
+    const token = await getToken();
     if (!token) return;
 
     setLoading(true);
@@ -42,82 +86,15 @@ function App() {
   };
 
   useEffect(() => {
-    // Get auth info
-    fetch(
-      `${
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
-      }/api/auth/health`
-    )
-      .then((res) => res.json())
-      .then((data) => setAuthInfo(data))
-      .catch(console.error);
-
-    // Get mock users if available
-    fetch(
-      `${
-        import.meta.env.VITE_API_URL || "http://localhost:8000"
-      }/api/auth/dev/users`
-    )
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setMockUsers(data))
-      .catch(() => {}); // Ignore errors for non-mock mode
-
-    // Get current user if token exists
-    if (token) {
-      fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:8000"
-        }/api/auth/me`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          setUser(data);
-          if (data) {
-            // Load projects when user is authenticated
-            fetchProjects();
-          }
-        })
-        .catch(() => setToken(null));
+    // Load projects when user is authenticated
+    if (user) {
+      fetchProjects();
     }
-  }, [token]);
+  }, [user]);
 
-  const login = async (username: string, password: string) => {
-    try {
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:8000"
-        }/api/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("token", data.access_token);
-        setToken(data.access_token);
-      } else {
-        alert("Login failed");
-      }
-    } catch (error) {
-      alert("Login error");
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
-    setUser(null);
-    setShowArtifacts(false);
-    setArtifacts([]);
-  };
 
   const fetchArtifacts = async () => {
+    const token = await getToken();
     if (!token) return;
 
     setLoading(true);
@@ -145,6 +122,7 @@ function App() {
   };
 
   const createRandomArtifact = async () => {
+    const token = await getToken();
     if (!token) return;
 
     setLoading(true);
@@ -158,7 +136,7 @@ function App() {
         project_id: selectedProjectId,
         tags: ["random", "demo", "test"],
         metadata: {
-          created_by: user?.username || "unknown",
+          created_by: user?.username || user?.firstName || "unknown",
           random_id: Math.floor(Math.random() * 10000),
           source: "client-app",
         },
@@ -200,6 +178,7 @@ function App() {
   };
 
   const createProject = async () => {
+    const token = await getToken();
     if (!token) return;
 
     const projectName = prompt("Enter project name:");
@@ -251,119 +230,25 @@ function App() {
     fetchProjects();
   };
 
-  if (!token) {
-    return (
-      <div
-        style={{
-          padding: "20px",
-          fontFamily: "Arial, sans-serif",
-          maxWidth: "600px",
-          margin: "0 auto",
-        }}
-      >
-        <h1>Nema Sandbox</h1>
-
-        {authInfo && (
-          <div
-            style={{
-              marginBottom: "20px",
-              padding: "15px",
-              backgroundColor: "#f0f8ff",
-              borderRadius: "8px",
-            }}
-          >
-            <h3>Authentication Mode</h3>
-            <p>
-              <strong>Mode:</strong>{" "}
-              {authInfo.mock_auth
-                ? "Mock Authentication (Development)"
-                : "AWS Cognito"}
-            </p>
-            <p>
-              <strong>Environment:</strong> {authInfo.environment}
-            </p>
-            {authInfo.mock_auth && (
-              <p style={{ color: "green" }}>✅ No AWS credentials required!</p>
-            )}
-          </div>
-        )}
-
-        <div style={{ marginBottom: "20px" }}>
-          <h3>Login</h3>
-          <LoginForm onLogin={login} />
-        </div>
-
-        {mockUsers && (
-          <div
-            style={{
-              padding: "15px",
-              backgroundColor: "#f5f5f5",
-              borderRadius: "8px",
-            }}
-          >
-            <h3>Available Demo Users</h3>
-            <p>Click any user below to auto-fill the login form:</p>
-            <div style={{ display: "grid", gap: "10px" }}>
-              {mockUsers.users.map((u: any) => (
-                <button
-                  key={u.username}
-                  onClick={() => login(u.username, u.username)}
-                  style={{
-                    padding: "10px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <strong>{u.username}</strong> - {u.given_name} {u.family_name}{" "}
-                  ({u.groups.join(", ")})
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
           marginBottom: "20px",
+          padding: "15px",
+          backgroundColor: "#e8f5e8",
+          borderRadius: "8px",
         }}
       >
-        <h1>Nema Dashboard 1</h1>
-        <button onClick={logout} style={buttonStyle}>
-          Logout
-        </button>
+        <h3>Welcome, {user?.fullName || user?.firstName || "User"}!</h3>
+        <p>
+          <strong>Email:</strong> {user?.primaryEmailAddress?.emailAddress}
+        </p>
+        <p>
+          <strong>User ID:</strong> {user?.id}
+        </p>
       </div>
-
-      {user && (
-        <div
-          style={{
-            marginBottom: "20px",
-            padding: "15px",
-            backgroundColor: "#e8f5e8",
-            borderRadius: "8px",
-          }}
-        >
-          <h3>Welcome, {user.full_name || user.username}!</h3>
-          <p>
-            <strong>Email:</strong> {user.email}
-          </p>
-          <p>
-            <strong>Groups:</strong> {user.groups.join(", ")}
-          </p>
-          <p>
-            <strong>Tenant:</strong> {user.tenant_id}
-          </p>
-        </div>
-      )}
 
       <div
         style={{
@@ -657,58 +542,12 @@ function App() {
 
       <div style={{ marginTop: "30px", fontSize: "12px", color: "#666" }}>
         <p>API: {import.meta.env.VITE_API_URL || "http://localhost:8000"}</p>
-        <p>
-          Auth Mode:{" "}
-          {authInfo?.mock_auth ? "Mock Authentication" : "AWS Cognito"}
-        </p>
+        <p>Auth Mode: Clerk Authentication</p>
       </div>
     </div>
   );
 }
 
-function LoginForm({
-  onLogin,
-}: {
-  onLogin: (username: string, password: string) => void;
-}) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onLogin(username, password);
-  };
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        maxWidth: "300px",
-      }}
-    >
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        style={inputStyle}
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={inputStyle}
-      />
-      <button type="submit" style={buttonStyle}>
-        Login
-      </button>
-    </form>
-  );
-}
 
 const buttonStyle = {
   padding: "10px 20px",
@@ -719,11 +558,6 @@ const buttonStyle = {
   cursor: "pointer",
 };
 
-const inputStyle = {
-  padding: "8px",
-  border: "1px solid #ccc",
-  borderRadius: "4px",
-};
 
 const cardStyle = {
   padding: "20px",

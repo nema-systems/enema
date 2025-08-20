@@ -1,12 +1,25 @@
 """Database models for Nema Core"""
 
-from sqlalchemy import Column, String, Text, DateTime, BigInteger, ForeignKey, JSON
+from sqlalchemy import Column, String, Text, DateTime, BigInteger, ForeignKey, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import uuid
 
 from .connection import Base
+
+
+class User(Base):
+    """User model for Clerk integration"""
+    __tablename__ = "users"
+    __table_args__ = {"schema": "nema"}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clerk_user_id = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Project(Base):

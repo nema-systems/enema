@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     aws_access_key_id: Optional[str] = Field(default=None, alias="AWS_ACCESS_KEY_ID")
     aws_secret_access_key: Optional[str] = Field(default=None, alias="AWS_SECRET_ACCESS_KEY")
     
-    # Cognito Configuration
-    cognito_user_pool_id: Optional[str] = Field(default=None, alias="COGNITO_USER_POOL_ID")
-    cognito_app_client_id: Optional[str] = Field(default=None, alias="COGNITO_APP_CLIENT_ID")
-    cognito_app_client_secret: Optional[str] = Field(default=None, alias="COGNITO_APP_CLIENT_SECRET")
+    
+    # Clerk Configuration
+    clerk_secret_key: Optional[str] = Field(default=None, alias="CLERK_SECRET_KEY")
+    clerk_publishable_key: Optional[str] = Field(default=None, alias="CLERK_PUBLISHABLE_KEY")
     
     # External Services
     temporal_host: str = Field(default="temporal", alias="TEMPORAL_HOST")
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
     
     class Config:
-        env_file = ".env"
+        env_file = "../../.env"  # Point to sandbox root directory
         case_sensitive = False
         
     @property
@@ -122,10 +122,13 @@ def validate_settings():
     if settings.is_production:
         required_fields = [
             "database_url",
-            "jwt_secret", 
-            "cognito_user_pool_id",
-            "cognito_app_client_id"
+            "jwt_secret"
         ]
+        
+        # Either Clerk or Mock auth must be configured
+        auth_configured = bool(settings.clerk_secret_key or settings.mock_auth_enabled)
+        if not auth_configured:
+            required_fields.append("clerk_secret_key")
         
         missing_fields = []
         for field in required_fields:

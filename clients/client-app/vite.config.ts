@@ -14,5 +14,6 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
-  }
+  },
+  envDir: '../../', // Point to sandbox root directory for .env
 })
