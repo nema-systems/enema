@@ -28,24 +28,24 @@
 - **Parameter Independence**: Parameters exist independently and can be reused across different requirement versions
 - **Parameter Groups**: Parameters have a group_id to identify alternatives
 - **Parameter Alternatives**: Multiple parameter versions with the same group_id represent alternatives
+- **Parameter Value Storage**: Parameters store values as JSONB to support all common primitives (string, number, boolean, arrays) with type field for validation and UI rendering
 - **Parameter Version Linking**: Parameters link to their previous version through prev_version field, maintaining history within the same base_param_id
 - **Abstract Requirements**: A requirement is abstract if any of its associated parameters have multiple versions with the same group_id (computed, not stored)
 
 ### Trees and Views
-- **ReqTree**: A standalone requirement tree structure containing requirements directly, with metadata (JSONB field reserved for future use)
-- **ReqTreeView**: A filtered view of a ReqTree using specific tags as filters, with metadata (JSONB field reserved for future use)
-- **Component**: A requirement tree view (ReqTreeView) with description, rules, sharing controls, and metadata (JSONB field reserved for future use)
+- **ReqTree**: A workspace-scoped requirement tree structure containing requirements directly, with metadata (JSONB field reserved for future use)
+- **Component**: A workspace-scoped curated view of a ReqTree with explicitly selected requirements and parameters via junction tables, includes description, rules, sharing controls, and metadata (JSONB field reserved for future use)
 - **Component Sharing**: Components have a shared flag - if false, only available to owning project
 - **Component Rules**: Components have a rules field for filtering and business logic
 - **Abstract Trees**: A ReqTree is abstract if it contains any abstract requirements (computed, not stored)
 
-### Filtering and Views
-- **Tags**: Associated with requirements, parameters, and test cases for filtering
-- **ReqTreeView Filtering**: Uses parameter associations instead of tag-based filtering
-- **Component Rules**: String field containing business logic and filtering rules
-- **ReqTreeView Parameter Selection**: ReqTreeView directly associates with specific parameters
-- **Inclusion Rule**: A requirement is included in a ReqTreeView based on component rules and parameter associations
-- **Alternative Selection**: ReqTreeView must select exactly one parameter from each group_id
+### Views and Selection
+- **Tags**: Workspace-scoped entities associated with requirements, parameters, and test cases for organizational filtering
+- **Component Selection**: Uses junction tables to explicitly select which requirements and parameters are included in the component view
+- **Component Rules**: String field containing business logic and validation rules for the view
+- **Component Requirement Selection**: Component explicitly associates with specific requirements via COMPONENTREQ junction table
+- **Component Parameter Selection**: Component explicitly associates with specific parameters via COMPONENTPARAM junction table
+- **Alternative Selection**: Component must select exactly one parameter from each group_id for concrete views
 
 ### Versioning and Releases
 - **Requirement Versioning**: Each REQ table row represents a version with associated user (revision author) and version number
@@ -55,17 +55,18 @@
 - **Parameter Associations**: Parameters are linked to requirement versions through junction table (many-to-many with REQ table rows)
 - **Parameter Sharing**: Same parameters can be associated with multiple requirement versions
 - **Parameter Independence**: Parameters maintain their own versioning lifecycle separate from requirements
-- **Non-versioned Entities**: ReqTree and ReqTreeView are not versioned
-- **Releases**: REQ table rows and PARAM table rows can be associated with one or more releases
-- **Release Hierarchy**: Releases can link to previous releases through prev_release field, maintaining release history
+- **Non-versioned Entities**: ReqTree and Component are not versioned
+- **Releases**: Workspace-scoped entities that belong to a specific component and can be associated with REQ table rows and PARAM table rows
+- **Release Component Association**: Each release belongs to exactly one component within the workspace
+- **Release Hierarchy**: Releases can link to previous releases through prev_release field, maintaining release history within the workspace
 - **Release Draft Mode**: Releases have a draft boolean flag - when true, associated requirements and parameters can be edited; when false, they become immutable
 - **Release Descriptions**: Releases have description fields for detailed release notes and metadata (JSONB field reserved for future use)
 - **Release Restrictions**: Abstract ReqTrees cannot be released
 
 ### Immutability and Constraints
-- **ReqTreeView Immutability**: ReqTreeViews cannot be modified once created
-- **Non-abstract Constraint**: ReqTreeViews must not be abstract (computed constraint)
-- **Parameter Selection**: ReqTreeView must select exactly one parameter from each group_id
+- **Component Immutability**: Components cannot be modified once created (if needed for business rules)
+- **Non-abstract Constraint**: Components must not be abstract (computed constraint)
+- **Parameter Selection**: Component must select exactly one parameter from each group_id
 - **Parameter Sharing Constraint**: Parameters can be shared across multiple requirement versions via junction table
 - **Parameter Independence**: Parameters exist independently of any specific requirement version
 - **Component Sharing**: Components with shared=true can be referenced by multiple projects
@@ -93,17 +94,17 @@
 - **User Fields**: Local User table contains: id (PK), clerk_user_id (unique), username, email, created_at, last_seen_at
 
 ### Testing Framework
-- **Test Cases**: Entities that define test procedures with name, method, expected results, execution mode, notes, and metadata (JSONB field reserved for future use)
-- **Test Case Associations**: Test cases can be linked to requirement versions and parameters via junction tables
-- **Test Case Tagging**: Test cases can be tagged for filtering and organization
+- **Test Cases**: Workspace-scoped entities that define test procedures with name, method, expected results, execution mode, notes, and metadata (JSONB field reserved for future use)
+- **Test Case Associations**: Test cases can be linked to requirement versions and parameters via junction tables within the same workspace
+- **Test Case Tagging**: Test cases can be tagged for filtering and organization using workspace-scoped tags
 - **Test Runs**: Execution instances of test cases with results, execution timestamps, optional executor, and metadata (JSONB field reserved for future use)
-- **Test Run Assets**: Test runs can be associated with assets (files, documents, etc.) through junction tables
-- **Asset Management**: Assets are standalone entities with file paths, types, descriptions, and optional creator
+- **Test Run Assets**: Test runs can be associated with workspace-scoped assets (files, documents, etc.) through junction tables
+- **Asset Management**: Assets are workspace-scoped entities with file paths, types, descriptions, and optional creator
 
 ### Group Management
-- **Shared Groups**: Groups are shared entities that can organize both requirements and test cases
-- **Group Flexibility**: Same groups can be used for requirements and test cases for consistent organization
-- **Group Structure**: Groups have names and descriptions for clear categorization
+- **Workspace-Scoped Groups**: Groups are workspace-scoped entities that can organize both requirements and test cases within the same workspace
+- **Group Flexibility**: Same groups can be used for requirements and test cases for consistent organization within a workspace
+- **Group Structure**: Groups have names, descriptions, and workspace_id for clear categorization and isolation
 
 ### Testing Relationships
 - **Test Case → Requirement Versions**: Many-to-many relationship for traceability
@@ -120,6 +121,10 @@
 - **JIRA-Style IDs**: Requirements, test cases, and releases have human-readable public IDs (e.g., REQ-1, TEST-1, REL-1)
 - **Workspace-Scoped Counters**: Each workspace maintains independent monotonic counters for each entity type
 - **Unique Within Workspace**: Public IDs are unique within a workspace but can be duplicated across different workspaces
+- **Database Constraints**: Composite unique constraints ensure workspace-scoped uniqueness:
+  - REQ: UNIQUE(req_tree_id→workspace_id, public_id) 
+  - TESTCASE: UNIQUE(workspace_id, public_id)
+  - RELEASE: UNIQUE(component_id→workspace_id, public_id)
 - **Monotonic Sequence**: Counters never reuse numbers, even after entity deletion (REQ-1 deleted → next is REQ-2, not REQ-1)
 - **Database Sequences**: Implemented using PostgreSQL sequences with workspace-specific naming (e.g., ws_1_req_seq, ws_2_req_seq)
 - **Auto-Generation**: Public IDs are automatically generated on entity creation using database triggers

@@ -29,6 +29,7 @@ erDiagram
 
     REQTREE {
         int id PK
+        int workspace_id FK
         string name
         jsonb metadata
         datetime created_at
@@ -36,6 +37,8 @@ erDiagram
 
     COMPONENT {
         int id PK
+        int workspace_id FK
+        int req_tree_id FK
         string name
         text description
         text rules
@@ -44,14 +47,6 @@ erDiagram
         datetime created_at
     }
 
-    REQTREEVIEW {
-        int id PK
-        int component_id FK
-        int req_tree_id FK
-        string name
-        jsonb metadata
-        datetime created_at
-    }
 
     REQ {
         int id PK
@@ -60,7 +55,6 @@ erDiagram
         int prev_version FK
         int req_tree_id FK
         int author_id FK
-        string identifier
         string public_id
         string name
         text definition
@@ -83,7 +77,7 @@ erDiagram
         string name
         string type
         text description
-        json value
+        jsonb value
         string group_id
         int version_number
         jsonb metadata
@@ -92,6 +86,7 @@ erDiagram
 
     TAG {
         int id PK
+        int workspace_id FK
         string name
         string color
         datetime created_at
@@ -99,6 +94,7 @@ erDiagram
 
     RELEASE {
         int id PK
+        int component_id FK
         int prev_release FK
         string name
         string public_id
@@ -121,6 +117,7 @@ erDiagram
 
     GROUP {
         int id PK
+        int workspace_id FK
         string name
         text description
         datetime created_at
@@ -128,6 +125,7 @@ erDiagram
 
     TESTCASE {
         int id PK
+        int workspace_id FK
         string name
         string public_id
         string test_method
@@ -150,6 +148,7 @@ erDiagram
 
     ASSET {
         int id PK
+        int workspace_id FK
         int creator_id FK
         string name
         string file_path
@@ -160,74 +159,92 @@ erDiagram
 
     %% Junction Tables
     PROJECTCOMPONENT {
+        int workspace_id FK
         int project_id FK
         int component_id FK
     }
 
     REQPARAM {
+        int workspace_id FK
         int req_id FK
         int param_id FK
     }
 
     REQTAG {
+        int workspace_id FK
         int req_id FK
         int tag_id FK
     }
 
     PARAMTAG {
+        int workspace_id FK
         int param_id FK
         int tag_id FK
     }
 
-    REQTREEVIEWPARAM {
-        int req_tree_view_id FK
+    COMPONENTPARAM {
+        int workspace_id FK
+        int component_id FK
         int param_id FK
     }
 
+    COMPONENTREQ {
+        int workspace_id FK
+        int component_id FK
+        int req_id FK
+    }
+
     TESTCASEREQ {
+        int workspace_id FK
         int test_case_id FK
         int req_id FK
     }
 
     TESTCASEPARAM {
+        int workspace_id FK
         int test_case_id FK
         int param_id FK
     }
 
     TESTCASEGROUP {
+        int workspace_id FK
         int test_case_id FK
         int group_id FK
     }
 
     REQGROUP {
+        int workspace_id FK
         int req_id FK
         int group_id FK
     }
 
     TESTCASETAG {
+        int workspace_id FK
         int test_case_id FK
         int tag_id FK
     }
 
     TESTRUNASSET {
+        int workspace_id FK
         int test_run_id FK
         int asset_id FK
     }
 
     REQRELEASE {
+        int workspace_id FK
         int req_id FK
         int release_id FK
     }
 
     PARAMRELEASE {
+        int workspace_id FK
         int param_id FK
         int release_id FK
     }
 
     %% Direct Relationships
     WORKSPACE ||--o{ PROJECT : contains
-    COMPONENT ||--|| REQTREEVIEW : "is a"
-    REQTREEVIEW }o--|| REQTREE : "views"
+    COMPONENT }o--|| REQTREE : "views"
     REQTREE ||--o{ REQ : "contains"
 
     REQ ||--o{ REQ : "parent-child"
@@ -243,6 +260,13 @@ erDiagram
     USER ||--o{ TESTRUN : "executes"
     USER ||--o{ ASSET : "creates"
 
+    WORKSPACE ||--o{ TESTCASE : "contains"
+    WORKSPACE ||--o{ TAG : "contains"
+    WORKSPACE ||--o{ GROUP : "contains"
+    WORKSPACE ||--o{ ASSET : "contains"
+    WORKSPACE ||--o{ REQTREE : "contains"
+    WORKSPACE ||--o{ COMPONENT : "contains"
+
     %% Many-to-Many through junction tables
     PROJECT ||--o{ PROJECTCOMPONENT : ""
     PROJECTCOMPONENT }o--|| COMPONENT : ""
@@ -256,8 +280,11 @@ erDiagram
     PARAM ||--o{ PARAMTAG : ""
     PARAMTAG }o--|| TAG : ""
 
-    REQTREEVIEW ||--o{ REQTREEVIEWPARAM : ""
-    REQTREEVIEWPARAM }o--|| PARAM : ""
+    COMPONENT ||--o{ COMPONENTPARAM : ""
+    COMPONENTPARAM }o--|| PARAM : ""
+
+    COMPONENT ||--o{ COMPONENTREQ : ""
+    COMPONENTREQ }o--|| REQ : ""
 
     TESTCASE ||--o{ TESTCASEREQ : ""
     TESTCASEREQ }o--|| REQ : ""
@@ -284,4 +311,10 @@ erDiagram
     PARAMRELEASE }o--|| RELEASE : ""
 
     RELEASE ||--o{ RELEASE : "prev-release"
+    COMPONENT ||--o{ RELEASE : "has releases"
+
+    %% Composite Unique Constraints (Database Implementation)
+    %% REQ: UNIQUE(req_tree_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
+    %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness  
+    %% RELEASE: UNIQUE(component_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
 ```
