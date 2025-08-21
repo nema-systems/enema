@@ -21,10 +21,23 @@ erDiagram
     USER {
         int id PK
         string clerk_user_id
-        string username
         string email
+        string first_name
+        string last_name
+        string image_url
+        boolean deleted
         datetime created_at
-        datetime last_seen_at
+        datetime updated_at
+    }
+
+    ORGANIZATION {
+        int id PK
+        string clerk_org_id
+        string name
+        string image_url
+        boolean deleted
+        datetime created_at
+        datetime updated_at
     }
 
     REQTREE {
@@ -55,6 +68,7 @@ erDiagram
         int prev_version FK
         int req_tree_id FK
         int author_id FK
+        int owner_id FK
         string public_id
         string name
         text definition
@@ -63,6 +77,7 @@ erDiagram
         string priority
         string functional
         string validation_method
+        string status
         text rationale
         text notes
         jsonb metadata
@@ -158,85 +173,105 @@ erDiagram
     }
 
     %% Junction Tables
-    PROJECTCOMPONENT {
+    ORGANIZATION_MEMBERSHIP {
+        int id PK
+        int organization_id FK
+        int user_id FK
+        string role
+        boolean deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    ORGANIZATION_WORKSPACE {
+        int id PK
+        int organization_id FK
+        int workspace_id FK
+        string role
+        boolean deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    PROJECT_COMPONENTS {
         int workspace_id FK
         int project_id FK
         int component_id FK
     }
 
-    REQPARAM {
+    REQUIREMENT_PARAMETERS {
         int workspace_id FK
         int req_id FK
         int param_id FK
     }
 
-    REQTAG {
+    REQUIREMENT_TAGS {
         int workspace_id FK
         int req_id FK
         int tag_id FK
     }
 
-    PARAMTAG {
+    PARAMETER_TAGS {
         int workspace_id FK
         int param_id FK
         int tag_id FK
     }
 
-    COMPONENTPARAM {
+    COMPONENT_PARAMETERS {
         int workspace_id FK
         int component_id FK
         int param_id FK
     }
 
-    COMPONENTREQ {
+    COMPONENT_REQUIREMENTS {
         int workspace_id FK
         int component_id FK
         int req_id FK
     }
 
-    TESTCASEREQ {
+    TESTCASE_REQUIREMENTS {
         int workspace_id FK
         int test_case_id FK
         int req_id FK
     }
 
-    TESTCASEPARAM {
+    TESTCASE_PARAMETERS {
         int workspace_id FK
         int test_case_id FK
         int param_id FK
     }
 
-    TESTCASEGROUP {
+    TESTCASE_GROUPS {
         int workspace_id FK
         int test_case_id FK
         int group_id FK
     }
 
-    REQGROUP {
+    REQUIREMENT_GROUPS {
         int workspace_id FK
         int req_id FK
         int group_id FK
     }
 
-    TESTCASETAG {
+    TESTCASE_TAGS {
         int workspace_id FK
         int test_case_id FK
         int tag_id FK
     }
 
-    TESTRUNASSET {
+    TESTRUN_ASSETS {
         int workspace_id FK
         int test_run_id FK
         int asset_id FK
     }
 
-    REQRELEASE {
+    REQUIREMENT_RELEASES {
         int workspace_id FK
         int req_id FK
         int release_id FK
     }
 
-    PARAMRELEASE {
+    PARAMETER_RELEASES {
         int workspace_id FK
         int param_id FK
         int release_id FK
@@ -255,10 +290,17 @@ erDiagram
     TESTCASE ||--o{ TESTRUN : "has runs"
 
     USER ||--o{ REQ : "authors"
+    USER ||--o{ REQ : "owns"
     USER ||--o{ PARAM : "authors"
     USER ||--o{ COMMENT : "writes"
     USER ||--o{ TESTRUN : "executes"
     USER ||--o{ ASSET : "creates"
+
+    ORGANIZATION ||--o{ ORGANIZATION_MEMBERSHIP : "has members"
+    ORGANIZATION_MEMBERSHIP }o--|| USER : "member"
+    
+    ORGANIZATION ||--o{ ORGANIZATION_WORKSPACE : "accesses"
+    ORGANIZATION_WORKSPACE }o--|| WORKSPACE : "accessed by"
 
     WORKSPACE ||--o{ TESTCASE : "contains"
     WORKSPACE ||--o{ TAG : "contains"
@@ -268,47 +310,47 @@ erDiagram
     WORKSPACE ||--o{ COMPONENT : "contains"
 
     %% Many-to-Many through junction tables
-    PROJECT ||--o{ PROJECTCOMPONENT : ""
-    PROJECTCOMPONENT }o--|| COMPONENT : ""
+    PROJECT ||--o{ PROJECT_COMPONENTS : ""
+    PROJECT_COMPONENTS }o--|| COMPONENT : ""
 
-    REQ ||--o{ REQPARAM : ""
-    REQPARAM }o--|| PARAM : ""
+    REQ ||--o{ REQUIREMENT_PARAMETERS : ""
+    REQUIREMENT_PARAMETERS }o--|| PARAM : ""
 
-    REQ ||--o{ REQTAG : ""
-    REQTAG }o--|| TAG : ""
+    REQ ||--o{ REQUIREMENT_TAGS : ""
+    REQUIREMENT_TAGS }o--|| TAG : ""
 
-    PARAM ||--o{ PARAMTAG : ""
-    PARAMTAG }o--|| TAG : ""
+    PARAM ||--o{ PARAMETER_TAGS : ""
+    PARAMETER_TAGS }o--|| TAG : ""
 
-    COMPONENT ||--o{ COMPONENTPARAM : ""
-    COMPONENTPARAM }o--|| PARAM : ""
+    COMPONENT ||--o{ COMPONENT_PARAMETERS : ""
+    COMPONENT_PARAMETERS }o--|| PARAM : ""
 
-    COMPONENT ||--o{ COMPONENTREQ : ""
-    COMPONENTREQ }o--|| REQ : ""
+    COMPONENT ||--o{ COMPONENT_REQUIREMENTS : ""
+    COMPONENT_REQUIREMENTS }o--|| REQ : ""
 
-    TESTCASE ||--o{ TESTCASEREQ : ""
-    TESTCASEREQ }o--|| REQ : ""
+    TESTCASE ||--o{ TESTCASE_REQUIREMENTS : ""
+    TESTCASE_REQUIREMENTS }o--|| REQ : ""
 
-    TESTCASE ||--o{ TESTCASEPARAM : ""
-    TESTCASEPARAM }o--|| PARAM : ""
+    TESTCASE ||--o{ TESTCASE_PARAMETERS : ""
+    TESTCASE_PARAMETERS }o--|| PARAM : ""
 
-    TESTCASE ||--o{ TESTCASEGROUP : ""
-    TESTCASEGROUP }o--|| GROUP : ""
+    TESTCASE ||--o{ TESTCASE_GROUPS : ""
+    TESTCASE_GROUPS }o--|| GROUP : ""
 
-    REQ ||--o{ REQGROUP : ""
-    REQGROUP }o--|| GROUP : ""
+    REQ ||--o{ REQUIREMENT_GROUPS : ""
+    REQUIREMENT_GROUPS }o--|| GROUP : ""
 
-    TESTCASE ||--o{ TESTCASETAG : ""
-    TESTCASETAG }o--|| TAG : ""
+    TESTCASE ||--o{ TESTCASE_TAGS : ""
+    TESTCASE_TAGS }o--|| TAG : ""
 
-    TESTRUN ||--o{ TESTRUNASSET : ""
-    TESTRUNASSET }o--|| ASSET : ""
+    TESTRUN ||--o{ TESTRUN_ASSETS : ""
+    TESTRUN_ASSETS }o--|| ASSET : ""
 
-    REQ ||--o{ REQRELEASE : ""
-    REQRELEASE }o--|| RELEASE : ""
+    REQ ||--o{ REQUIREMENT_RELEASES : ""
+    REQUIREMENT_RELEASES }o--|| RELEASE : ""
 
-    PARAM ||--o{ PARAMRELEASE : ""
-    PARAMRELEASE }o--|| RELEASE : ""
+    PARAM ||--o{ PARAMETER_RELEASES : ""
+    PARAMETER_RELEASES }o--|| RELEASE : ""
 
     RELEASE ||--o{ RELEASE : "prev-release"
     COMPONENT ||--o{ RELEASE : "has releases"

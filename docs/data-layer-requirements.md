@@ -13,7 +13,8 @@
 - **Requirement Versioning**: Multiple rows in the REQ table represent different versions of the same logical requirement
 - **Base Req ID**: Shared integer identifier across all versions of the same logical requirement (base_req_id field)
 - **Requirement Hierarchy**: Requirements form a tree structure with parent-child relationships within a ReqTree
-- **Requirement Attributes**: Requirements have base_req_id, level, priority, functional type, validation method, rationale, notes, name, definition, version information, and metadata (JSONB field reserved for future use)
+- **Requirement Attributes**: Requirements have base_req_id, level, priority, functional type, validation method, status, rationale, notes, name, definition, version information, and metadata (JSONB field reserved for future use)
+- **Requirement Ownership**: Requirements have both author (creator) and owner (current responsible user) relationships to User table
 - **Requirement Grouping**: Requirements can be associated with groups for organization and classification
 - **ReqTree Membership**: Each requirement belongs to exactly one ReqTree (no sharing across trees)
 - **Comments**: Associated with requirements, contain text, ID, timestamp, author (User), and metadata (JSONB field reserved for future use)
@@ -84,14 +85,28 @@
 
 ### User Management
 - **External User Provider**: User authentication and management handled by Clerk (3rd party service)
-- **Local User Reference**: Lightweight User table stores Clerk user ID and basic info for foreign key relationships
+- **Enhanced User Profile**: User table stores Clerk user ID, email, first_name, last_name, image_url, and soft delete flag
 - **User Synchronization**: Users are automatically created/updated in local database when they authenticate via Clerk
 - **User Association**: Each version of Req and Param has an associated user via local User table reference
 - **Comment Authorship**: Each comment has an associated User and timestamp
 - **Test Execution**: Test runs have optional executor (User) for tracking who performed the test
 - **Asset Creation**: Assets have optional creator (User) for ownership tracking
 - **Clerk Integration**: Frontend uses Clerk React components, backend verifies Clerk JWT tokens
-- **User Fields**: Local User table contains: id (PK), clerk_user_id (unique), username, email, created_at, last_seen_at
+- **Soft Delete**: Users marked as deleted instead of hard deleted for data integrity
+
+### Organization Management
+- **Clerk Organization Integration**: Organizations synchronized with Clerk's organization system via clerk_org_id
+- **Organization Membership**: Users belong to organizations with specific roles (admin, member, etc.)
+- **Multi-Organization Support**: Users can be members of multiple organizations with different roles
+- **Organization Profile**: Organizations have name, image_url, and soft delete capabilities
+- **Role-Based Access**: Organization membership roles control user permissions within the organization
+
+### Organization-Workspace Access Control
+- **Flexible Access Model**: Organizations can access multiple workspaces through junction table
+- **Workspace Permissions**: Each organization-workspace relationship has specific role permissions
+- **Multi-Tenant Access**: Multiple organizations can access the same workspace with different permission levels
+- **Access Roles**: Organization-workspace access controlled by role field (owner, admin, contributor, viewer)
+- **Access Management**: Soft delete capability for access relationships without losing audit trail
 
 ### Testing Framework
 - **Test Cases**: Workspace-scoped entities that define test procedures with name, method, expected results, execution mode, notes, and metadata (JSONB field reserved for future use)
