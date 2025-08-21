@@ -166,6 +166,7 @@ erDiagram
         int workspace_id FK
         int creator_id FK
         string name
+        string public_id
         string file_path
         string file_type
         text description
@@ -359,4 +360,5 @@ erDiagram
     %% REQ: UNIQUE(req_tree_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness  
     %% RELEASE: UNIQUE(component_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
+    %% ASSET: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
 ```

@@ -133,16 +133,17 @@
 - **Requirement → Groups**: Many-to-many relationship for requirement organization
 
 ### Public Identifier Management
-- **JIRA-Style IDs**: Requirements, test cases, and releases have human-readable public IDs (e.g., REQ-1, TEST-1, REL-1)
+- **JIRA-Style IDs**: Requirements, test cases, releases, and assets have human-readable public IDs (e.g., REQ-1, TEST-1, REL-1, ASSET-1)
 - **Workspace-Scoped Counters**: Each workspace maintains independent monotonic counters for each entity type
 - **Unique Within Workspace**: Public IDs are unique within a workspace but can be duplicated across different workspaces
 - **Database Constraints**: Composite unique constraints ensure workspace-scoped uniqueness:
   - REQ: UNIQUE(req_tree_id→workspace_id, public_id) 
   - TESTCASE: UNIQUE(workspace_id, public_id)
   - RELEASE: UNIQUE(component_id→workspace_id, public_id)
+  - ASSET: UNIQUE(workspace_id, public_id)
 - **Monotonic Sequence**: Counters never reuse numbers, even after entity deletion (REQ-1 deleted → next is REQ-2, not REQ-1)
 - **Database Sequences**: Implemented using PostgreSQL sequences with workspace-specific naming (e.g., ws_1_req_seq, ws_2_req_seq)
 - **Auto-Generation**: Public IDs are automatically generated on entity creation using database triggers
 - **Thread-Safe**: Sequence-based approach ensures concurrent insert safety
-- **Public ID Format**: Prefix (REQ/TEST/REL) + hyphen + monotonic number within workspace scope
-- **Cross-Project Uniqueness**: Within a workspace, REQ-1 can only exist once across all projects in that workspace
+- **Public ID Format**: Prefix (REQ/TEST/REL/ASSET) + hyphen + monotonic number within workspace scope
+- **Cross-Project Uniqueness**: Within a workspace, REQ-1, TEST-1, REL-1, ASSET-1 can only exist once across all projects in that workspace
