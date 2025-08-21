@@ -13,12 +13,7 @@ import os
 from .config.settings import get_settings
 from .database.connection import init_database
 from .auth.routes import auth_router
-from .artifacts.routes import artifacts_router
-from .projects.routes import projects_router
-from .workflows.routes import workflows_router  
-from .data.routes import data_router
-from .ai_agent.routes import ai_router
-from .admin.routes import admin_router
+from .api.v1.router import router as api_v1_router
 
 # Configure structured logging
 structlog.configure(
@@ -70,7 +65,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Nema Core API",
-    description="Unified backend service for the Nema platform",
+    description="Requirement Management System Backend",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -85,6 +80,7 @@ app.add_middleware(
         "http://localhost:3000",  # client-app
         "http://localhost:3001",  # client-admin  
         "http://localhost:3002",  # client-landing
+        "http://localhost:3003",  # client-app (alternate port)
         "http://localhost:8080",  # temporal-webui
     ],
     allow_credentials=True,
@@ -156,41 +152,8 @@ app.include_router(
     tags=["Authentication"]
 )
 
-app.include_router(
-    artifacts_router,
-    prefix="/api/artifacts", 
-    tags=["Artifacts"]
-)
-
-app.include_router(
-    projects_router,
-    prefix="/api/projects",
-    tags=["Projects"]
-)
-
-app.include_router(
-    workflows_router,
-    prefix="/api/workflows",
-    tags=["Workflows"] 
-)
-
-app.include_router(
-    data_router,
-    prefix="/api/data",
-    tags=["Data"]
-)
-
-app.include_router(
-    ai_router,
-    prefix="/api/ai",
-    tags=["AI Agent"]
-)
-
-app.include_router(
-    admin_router,
-    prefix="/api/admin",
-    tags=["Administration"]
-)
+# Include API v1 endpoints
+app.include_router(api_v1_router)
 
 # Add middleware for request logging
 @app.middleware("http")

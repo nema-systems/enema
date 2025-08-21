@@ -1,4 +1,4 @@
-"""Authentication routes supporting both Cognito and Mock auth"""
+"""Authentication routes supporting both Clerk and Mock auth"""
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -131,6 +131,11 @@ class AuthService:
     async def get_current_user(self, token: str) -> User:
         """Get current user from JWT token"""
         try:
+            # Import database dependencies at function level
+            from ..database.connection import get_db_session
+            from ..database.models import Organization, User as DatabaseUser, OrganizationMembership
+            from sqlalchemy import select
+            
             auth_client = self._get_auth_client()
             
             if self.auth_provider == "mock":
@@ -144,18 +149,193 @@ class AuthService:
                     groups=groups,
                     tenant_id=tenant_id,
                     given_name=payload.get("given_name"),
-                    family_name=payload.get("family_name")
+                    family_name=payload.get("family_name"),
+                    user_id=None,  # Mock users don't have database IDs
+                    organization_id=None,  # Mock auth uses tenant_id instead
+                    organization_slug=None
                 )
             elif self.auth_provider == "clerk":
                 # Use Clerk client
                 token_data = await auth_client.verify_token(token)
+                
+                # Log token data for debugging
+                logger.info("Clerk token data", 
+                          user_id=token_data.sub,
+                          email=token_data.email,
+                          given_name=token_data.given_name,
+                          family_name=token_data.family_name,
+                          organization_id=token_data.organization_id,
+                          organization_slug=token_data.organization_slug)
+                
+                # Get or create local organization record
+                organization_id = None
+                if token_data.organization_slug:
+                    async with get_db_session() as db:
+                        # Look up organization by slug
+                        org_query = select(Organization).where(
+                            Organization.slug == token_data.organization_slug
+                        )
+                        result = await db.execute(org_query)
+                        org = result.scalar_one_or_none()
+                        
+                        if org:
+                            # Update existing organization with latest data from Clerk
+                            updated = False
+                            
+                            # Fetch latest data from Clerk API if we have org ID
+                            org_data = None
+                            if token_data.organization_id:
+                                org_data = await auth_client.fetch_organization(token_data.organization_id)
+                            
+                            # Update fields if they've changed
+                            if token_data.organization_id and org.clerk_org_id != token_data.organization_id:
+                                org.clerk_org_id = token_data.organization_id
+                                updated = True
+                            
+                            if org_data:
+                                if org.name != org_data.get("name"):
+                                    org.name = org_data.get("name")
+                                    updated = True
+                                if org.image_url != org_data.get("image_url"):
+                                    org.image_url = org_data.get("image_url")
+                                    updated = True
+                            
+                            if updated:
+                                await db.commit()
+                                await db.refresh(org)
+                                logger.info("Organization updated from Clerk", 
+                                          org_id=org.id, 
+                                          slug=token_data.organization_slug,
+                                          name=org.name)
+                            
+                            organization_id = org.id
+                        else:
+                            # Create new organization with full data from Clerk API
+                            logger.info("Creating new organization from Clerk", 
+                                      slug=token_data.organization_slug,
+                                      clerk_org_id=token_data.organization_id)
+                            
+                            # Fetch full organization data from Clerk API
+                            org_data = None
+                            if token_data.organization_id:
+                                org_data = await auth_client.fetch_organization(token_data.organization_id)
+                            
+                            new_org = Organization(
+                                clerk_org_id=token_data.organization_id,
+                                name=org_data.get("name") if org_data else None,
+                                slug=org_data.get("slug") if org_data else token_data.organization_slug,
+                                image_url=org_data.get("image_url") if org_data else None,
+                                deleted=False
+                            )
+                            
+                            db.add(new_org)
+                            await db.commit()
+                            await db.refresh(new_org)
+                            
+                            organization_id = new_org.id
+                            logger.info("Organization created with Clerk data", 
+                                      org_id=organization_id, 
+                                      slug=new_org.slug,
+                                      has_clerk_data=org_data is not None)
+                else:
+                    logger.warning("No organization context in Clerk token", 
+                                 user_id=token_data.sub)
+                
+                # Get or create local user record
+                user_id = None
+                if token_data.sub:
+                    async with get_db_session() as db:
+                        # Look up user by Clerk user ID
+                        user_query = select(DatabaseUser).where(
+                            DatabaseUser.clerk_user_id == token_data.sub
+                        )
+                        result = await db.execute(user_query)
+                        db_user = result.scalar_one_or_none()
+                        
+                        if db_user:
+                            # Update existing user if needed
+                            updated = False
+                            if db_user.email != token_data.email:
+                                db_user.email = token_data.email
+                                updated = True
+                            if db_user.first_name != token_data.given_name:
+                                db_user.first_name = token_data.given_name
+                                updated = True
+                            if db_user.last_name != token_data.family_name:
+                                db_user.last_name = token_data.family_name
+                                updated = True
+                            
+                            if updated:
+                                await db.commit()
+                                await db.refresh(db_user)
+                                logger.info("User updated from Clerk", 
+                                          user_id=db_user.id, 
+                                          clerk_user_id=token_data.sub)
+                            
+                            user_id = db_user.id
+                        else:
+                            # Create new user from Clerk data
+                            logger.info("Creating new user from Clerk", 
+                                      clerk_user_id=token_data.sub,
+                                      email=token_data.email)
+                            
+                            new_user = DatabaseUser(
+                                clerk_user_id=token_data.sub,
+                                email=token_data.email,
+                                first_name=token_data.given_name,
+                                last_name=token_data.family_name,
+                                image_url=None,  # Could be fetched from Clerk API if needed
+                                deleted=False
+                            )
+                            
+                            db.add(new_user)
+                            await db.commit()
+                            await db.refresh(new_user)
+                            
+                            user_id = new_user.id
+                            logger.info("User created", 
+                                      user_id=user_id, 
+                                      clerk_user_id=token_data.sub)
+                
+                # Sync organization membership if both user and organization exist
+                if user_id and organization_id:
+                    async with get_db_session() as db:
+                        # Check if membership exists
+                        membership_query = select(OrganizationMembership).where(
+                            OrganizationMembership.user_id == user_id,
+                            OrganizationMembership.organization_id == organization_id,
+                            OrganizationMembership.deleted == False
+                        )
+                        result = await db.execute(membership_query)
+                        membership = result.scalar_one_or_none()
+                        
+                        if not membership:
+                            # Create membership with default role
+                            new_membership = OrganizationMembership(
+                                user_id=user_id,
+                                organization_id=organization_id,
+                                role="member",  # Default role, can be updated later
+                                deleted=False
+                            )
+                            
+                            db.add(new_membership)
+                            await db.commit()
+                            
+                            logger.info("Organization membership created", 
+                                      user_id=user_id, 
+                                      organization_id=organization_id)
+                
                 return User(
                     username=token_data.username,
                     email=token_data.email,
                     groups=token_data.groups or [],
                     tenant_id=None,  # Can be added via Clerk metadata
                     given_name=token_data.given_name,
-                    family_name=token_data.family_name
+                    family_name=token_data.family_name,
+                    clerk_user_id=token_data.sub,
+                    user_id=user_id,
+                    organization_id=organization_id,
+                    organization_slug=token_data.organization_slug
                 )
             else:
                 # Should not reach here with current provider logic

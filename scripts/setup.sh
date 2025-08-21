@@ -14,12 +14,9 @@ fi
 if [ ! -f ".env" ]; then
     echo "📋 Creating .env file from template"
     cp .env.example .env
-    echo "✅ Please edit .env file with your AWS credentials"
-    echo "   - AWS_ACCESS_KEY_ID"
-    echo "   - AWS_SECRET_ACCESS_KEY" 
-    echo "   - COGNITO_USER_POOL_ID"
-    echo "   - COGNITO_APP_CLIENT_ID"
-    echo "   - COGNITO_APP_CLIENT_SECRET"
+    echo "✅ Please edit .env file with your Clerk credentials"
+    echo "   - CLERK_SECRET_KEY"
+    echo "   - VITE_CLERK_PUBLISHABLE_KEY"
     echo ""
     echo "   Run this script again after updating .env"
     exit 0

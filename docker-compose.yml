@@ -73,14 +73,9 @@ services:
       - TEMPORAL_HOST=temporal
       - TEMPORAL_PORT=7233
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
-      - AWS_REGION=${AWS_REGION:-us-west-2}
-      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      # - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
-      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
-      - COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
-      - COGNITO_APP_CLIENT_SECRET=${COGNITO_APP_CLIENT_SECRET}
-      - MOCK_AUTH_ENABLED=${MOCK_AUTH_ENABLED:-true}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
+      - MOCK_AUTH_ENABLED=${MOCK_AUTH_ENABLED:-false}
     volumes:
       - ./services/nema-core:/app
       - /app/__pycache__
@@ -105,8 +100,7 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=http://localhost:8000
-      - VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
-      - VITE_COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
+      - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
     volumes:
       - ./clients/client-app:/app
       - /app/node_modules
@@ -124,8 +118,7 @@ services:
       - "3001:3001"
     environment:
       - VITE_API_URL=http://localhost:8000
-      - VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
-      - VITE_COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
+      - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
     volumes:
       - ./clients/client-admin:/app
       - /app/node_modules

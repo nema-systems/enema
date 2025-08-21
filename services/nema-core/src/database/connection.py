@@ -1,18 +1,11 @@
-"""Database connection and session management"""
+"""Database connection and session management for cloud deployment"""
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 import structlog
 
 logger = structlog.get_logger(__name__)
-
-
-class Base(DeclarativeBase):
-    """Base class for all database models"""
-    pass
-
 
 # Global engine and session factory
 engine = None
@@ -20,16 +13,19 @@ async_session_factory = None
 
 
 async def init_database(database_url: str):
-    """Initialize database connection and schema"""
+    """Initialize database connection and create all tables for cloud deployment"""
     global engine, async_session_factory
     
-    logger.info("Initializing database connection", database_url=database_url)
+    logger.info("Initializing database connection for requirement management system", 
+                database_url=database_url)
     
     # Ensure asyncpg URL format
     if database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+    elif not database_url.startswith("postgresql+asyncpg://"):
+        logger.warning("Database URL should use postgresql+asyncpg:// for async support")
     
-    # Create async engine with explicit asyncpg driver
+    # Create async engine with cloud deployment settings
     engine = create_async_engine(
         database_url,
         echo=False,  # Set to True for SQL debugging
@@ -37,6 +33,13 @@ async def init_database(database_url: str):
         max_overflow=20,
         pool_pre_ping=True,  # Validate connections before use
         pool_recycle=3600,   # Recycle connections after 1 hour
+        # Additional cloud-friendly settings
+        connect_args={
+            "server_settings": {
+                "application_name": "nema-core",
+                "jit": "off"  # Disable JIT for better cold start performance
+            }
+        }
     )
     
     # Create session factory
@@ -46,15 +49,15 @@ async def init_database(database_url: str):
         expire_on_commit=False
     )
     
-    # Test connection and initialize database schema
+    # Test connection and create database schema
     try:
         async with engine.begin() as conn:
             # Test basic connection
             await conn.execute(text("SELECT 1"))
             logger.info("Database connection established successfully")
             
-            # Initialize database schema
-            await _initialize_database_schema(conn)
+            # Create database schema and tables for cloud deployment
+            await _create_database_schema(conn)
             
     except Exception as e:
         logger.error("Failed to connect to database", error=str(e))
@@ -92,42 +95,32 @@ async def close_database():
         logger.info("Database connections closed")
 
 
-async def _initialize_database_schema(conn):
-    """Initialize database schema, extensions, and initial data"""
+async def _create_database_schema(conn):
+    """Create complete database schema for cloud deployment"""
     
-    logger.info("Initializing database schema...")
+    logger.info("Creating database schema for requirement management system...")
     
     try:
         # Create required PostgreSQL extensions
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
-        await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
+        logger.info("UUID extension created successfully")
         
-        logger.info("Required PostgreSQL extensions created successfully")
-        
-        # Create schemas
-        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS nema"))
-        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS auth"))
-        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS temporal"))
-        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS embeddings"))
-        
-        logger.info("Database extensions and schemas created successfully")
-        
-        # Import all models to ensure they're registered with Base
+        # Import models to register them with Base
         from .models import Base
         
-        # Create all tables defined in models
+        # Create all tables defined in SQLAlchemy models
+        logger.info("Creating database tables...")
         await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created successfully")
         
-        logger.info("Database tables created successfully via SQLAlchemy")
+        # Create indexes for performance
+        await _create_database_indexes(conn)
         
-        # Create additional tables that aren't in SQLAlchemy models yet
-        await _create_additional_tables(conn)
+        # Create sequences for public ID generation
+        await _create_public_id_sequences(conn)
         
-        # Create initial data (tenants, workspaces, etc.)
-        await _create_initial_data(conn)
-        
-        # Set database search path
-        await conn.execute(text("ALTER DATABASE nema SET search_path = nema,temporal,auth,embeddings,public"))
+        # Create functions and triggers for public ID generation
+        await _create_public_id_functions(conn)
         
         logger.info("Database schema initialization completed successfully")
         
@@ -136,78 +129,261 @@ async def _initialize_database_schema(conn):
         raise
 
 
-async def _create_additional_tables(conn):
-    """Create additional tables not yet covered by SQLAlchemy models"""
+async def _create_database_indexes(conn):
+    """Create database indexes for performance optimization"""
     
-    # Auth schema tables
-    await conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS auth.tenants (
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            tenant_id VARCHAR(100) UNIQUE NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            domain VARCHAR(255),
-            is_active BOOLEAN DEFAULT true,
-            settings JSONB DEFAULT '{}',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
+    logger.info("Creating database indexes...")
     
-    await conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS auth.workspaces (
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            workspace_id VARCHAR(100) NOT NULL,
-            tenant_id VARCHAR(100) REFERENCES auth.tenants(tenant_id),
-            name VARCHAR(255) NOT NULL,
-            settings JSONB DEFAULT '{}',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(tenant_id, workspace_id)
-        )
-    """))
+    indexes = [
+        # User indexes
+        "CREATE INDEX IF NOT EXISTS idx_user_clerk_user_id ON \"user\"(clerk_user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_user_email ON \"user\"(email)",
+        
+        # Organization indexes
+        "CREATE INDEX IF NOT EXISTS idx_organization_clerk_org_id ON organization(clerk_org_id)",
+        "CREATE INDEX IF NOT EXISTS idx_organization_slug ON organization(slug)",
+        
+        # Workspace indexes
+        "CREATE INDEX IF NOT EXISTS idx_workspace_name ON workspace(name)",
+        
+        # Requirement indexes
+        "CREATE INDEX IF NOT EXISTS idx_req_public_id ON req(public_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_base_req_id ON req(base_req_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_tree_id ON req(req_tree_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_author_id ON req(author_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_owner_id ON req(owner_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_status ON req(status)",
+        "CREATE INDEX IF NOT EXISTS idx_req_priority ON req(priority)",
+        
+        # Parameter indexes
+        "CREATE INDEX IF NOT EXISTS idx_param_base_param_id ON param(base_param_id)",
+        "CREATE INDEX IF NOT EXISTS idx_param_author_id ON param(author_id)",
+        "CREATE INDEX IF NOT EXISTS idx_param_group_id ON param(group_id)",
+        "CREATE INDEX IF NOT EXISTS idx_param_type ON param(type)",
+        
+        # Test case indexes
+        "CREATE INDEX IF NOT EXISTS idx_testcase_public_id ON testcase(public_id)",
+        "CREATE INDEX IF NOT EXISTS idx_testcase_workspace_id ON testcase(workspace_id)",
+        
+        # Asset indexes
+        "CREATE INDEX IF NOT EXISTS idx_asset_public_id ON asset(public_id)",
+        "CREATE INDEX IF NOT EXISTS idx_asset_workspace_id ON asset(workspace_id)",
+        "CREATE INDEX IF NOT EXISTS idx_asset_creator_id ON asset(creator_id)",
+        "CREATE INDEX IF NOT EXISTS idx_asset_file_type ON asset(file_type)",
+        
+        # Release indexes
+        "CREATE INDEX IF NOT EXISTS idx_release_public_id ON release(public_id)",
+        "CREATE INDEX IF NOT EXISTS idx_release_component_id ON release(component_id)",
+        "CREATE INDEX IF NOT EXISTS idx_release_draft ON release(draft)",
+        
+        # Junction table indexes
+        "CREATE INDEX IF NOT EXISTS idx_org_membership_org_user ON organization_membership(organization_id, user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_org_workspace_org_ws ON organization_workspace(organization_id, workspace_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_param_req_param ON requirement_parameters(req_id, param_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_tag_req_tag ON requirement_tags(req_id, tag_id)",
+        "CREATE INDEX IF NOT EXISTS idx_comp_req_comp_req ON component_requirements(component_id, req_id)",
+        "CREATE INDEX IF NOT EXISTS idx_comp_param_comp_param ON component_parameters(component_id, param_id)",
+    ]
     
-    # Create embeddings table with JSONB (pgvector will be handled separately)
-    await conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS embeddings.artifact_embeddings (
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            artifact_global_id BIGINT NOT NULL,
-            text_content TEXT,
-            embedding JSONB,
-            model_name VARCHAR(100) DEFAULT 'text-embedding-ada-002',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
+    for index_sql in indexes:
+        await conn.execute(text(index_sql))
     
-    # Create indexes
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_artifacts_global_id ON nema.artifacts(global_id)"))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_artifacts_project_id ON nema.artifacts(project_id)"))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_artifacts_type ON nema.artifacts(artifact_type)"))
-    await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_embeddings_artifact_id ON embeddings.artifact_embeddings(artifact_global_id)"))
-    
-    logger.info("Additional database tables and indexes created successfully")
+    logger.info("Database indexes created successfully")
 
 
-async def _create_initial_data(conn):
-    """Create initial tenant, workspace and test data"""
+async def _create_public_id_sequences(conn):
+    """Create sequences for public ID generation (workspace-scoped)"""
     
-    # Create default tenant
-    await conn.execute(text("""
-        INSERT INTO auth.tenants (tenant_id, name, domain) 
-        VALUES ('default', 'Default Tenant', 'localhost') 
-        ON CONFLICT (tenant_id) DO NOTHING
-    """))
+    logger.info("Creating public ID sequences...")
     
-    # Create default workspace
-    await conn.execute(text("""
-        INSERT INTO auth.workspaces (workspace_id, tenant_id, name)
-        VALUES ('default', 'default', 'Default Workspace')
-        ON CONFLICT (tenant_id, workspace_id) DO NOTHING
-    """))
+    # We'll create sequences dynamically when workspaces are created
+    # This function creates the base template for sequence creation
     
-    # Create test project for development
-    test_project_id = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-    await conn.execute(text("""
-        INSERT INTO nema.projects (id, name, description, tenant_id, workspace_id)
-        VALUES (:project_id, 'Test Project', 'A test project for development and testing', 'default', 'default')
-        ON CONFLICT (id) DO NOTHING
-    """), {"project_id": test_project_id})
+    sequence_template = """
+    CREATE OR REPLACE FUNCTION create_workspace_sequences(ws_id INTEGER)
+    RETURNS VOID AS $$
+    BEGIN
+        EXECUTE format('CREATE SEQUENCE IF NOT EXISTS ws_%s_req_seq START 1', ws_id);
+        EXECUTE format('CREATE SEQUENCE IF NOT EXISTS ws_%s_testcase_seq START 1', ws_id);
+        EXECUTE format('CREATE SEQUENCE IF NOT EXISTS ws_%s_release_seq START 1', ws_id);
+        EXECUTE format('CREATE SEQUENCE IF NOT EXISTS ws_%s_asset_seq START 1', ws_id);
+    END;
+    $$ LANGUAGE plpgsql;
+    """
     
-    logger.info("Initial data (tenant, workspace, test project) created successfully")
+    await conn.execute(text(sequence_template))
+    logger.info("Public ID sequence creation function created")
+
+
+async def _create_public_id_functions(conn):
+    """Create functions and triggers for automatic public ID generation"""
+    
+    logger.info("Creating public ID generation functions...")
+    
+    # Function to generate public IDs
+    public_id_function = """
+    CREATE OR REPLACE FUNCTION generate_public_id(
+        workspace_id INTEGER,
+        prefix TEXT
+    ) RETURNS TEXT AS $$
+    DECLARE
+        sequence_name TEXT;
+        next_val INTEGER;
+        public_id TEXT;
+    BEGIN
+        sequence_name := format('ws_%s_%s_seq', workspace_id, lower(prefix));
+        
+        -- Create sequence if it doesn't exist
+        EXECUTE format('CREATE SEQUENCE IF NOT EXISTS %I START 1', sequence_name);
+        
+        -- Get next value
+        EXECUTE format('SELECT nextval(%L)', sequence_name) INTO next_val;
+        
+        -- Format public ID
+        public_id := format('%s-%s', prefix, next_val);
+        
+        RETURN public_id;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(public_id_function))
+    
+    # Trigger function for requirements
+    req_trigger_function = """
+    CREATE OR REPLACE FUNCTION set_req_public_id()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        ws_id INTEGER;
+    BEGIN
+        -- Get workspace_id from req_tree
+        SELECT rt.workspace_id INTO ws_id 
+        FROM reqtree rt 
+        WHERE rt.id = NEW.req_tree_id;
+        
+        -- Set public_id if not already set
+        IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
+            NEW.public_id := generate_public_id(ws_id, 'REQ');
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(req_trigger_function))
+    
+    # Create trigger for requirements
+    await conn.execute(text("DROP TRIGGER IF EXISTS trigger_set_req_public_id ON req"))
+    req_trigger = """
+    CREATE TRIGGER trigger_set_req_public_id
+        BEFORE INSERT ON req
+        FOR EACH ROW
+        EXECUTE FUNCTION set_req_public_id()
+    """
+    await conn.execute(text(req_trigger))
+    
+    # Trigger function for test cases
+    testcase_trigger_function = """
+    CREATE OR REPLACE FUNCTION set_testcase_public_id()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        -- Set public_id if not already set
+        IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
+            NEW.public_id := generate_public_id(NEW.workspace_id, 'TEST');
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(testcase_trigger_function))
+    
+    # Create trigger for test cases
+    await conn.execute(text("DROP TRIGGER IF EXISTS trigger_set_testcase_public_id ON testcase"))
+    testcase_trigger = """
+    CREATE TRIGGER trigger_set_testcase_public_id
+        BEFORE INSERT ON testcase
+        FOR EACH ROW
+        EXECUTE FUNCTION set_testcase_public_id()
+    """
+    await conn.execute(text(testcase_trigger))
+    
+    # Trigger function for assets
+    asset_trigger_function = """
+    CREATE OR REPLACE FUNCTION set_asset_public_id()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        -- Set public_id if not already set
+        IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
+            NEW.public_id := generate_public_id(NEW.workspace_id, 'ASSET');
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(asset_trigger_function))
+    
+    # Create trigger for assets
+    await conn.execute(text("DROP TRIGGER IF EXISTS trigger_set_asset_public_id ON asset"))
+    asset_trigger = """
+    CREATE TRIGGER trigger_set_asset_public_id
+        BEFORE INSERT ON asset
+        FOR EACH ROW
+        EXECUTE FUNCTION set_asset_public_id()
+    """
+    await conn.execute(text(asset_trigger))
+    
+    # Trigger function for releases
+    release_trigger_function = """
+    CREATE OR REPLACE FUNCTION set_release_public_id()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        ws_id INTEGER;
+    BEGIN
+        -- Get workspace_id from component
+        SELECT c.workspace_id INTO ws_id 
+        FROM component c 
+        WHERE c.id = NEW.component_id;
+        
+        -- Set public_id if not already set
+        IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
+            NEW.public_id := generate_public_id(ws_id, 'REL');
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(release_trigger_function))
+    
+    # Create trigger for releases
+    await conn.execute(text("DROP TRIGGER IF EXISTS trigger_set_release_public_id ON release"))
+    release_trigger = """
+    CREATE TRIGGER trigger_set_release_public_id
+        BEFORE INSERT ON release
+        FOR EACH ROW
+        EXECUTE FUNCTION set_release_public_id()
+    """
+    await conn.execute(text(release_trigger))
+    
+    logger.info("Public ID generation functions and triggers created successfully")
+
+
+async def create_workspace_sequences(workspace_id: int):
+    """Create sequences for a specific workspace (called when workspace is created)"""
+    if async_session_factory is None:
+        raise RuntimeError("Database not initialized")
+    
+    async with async_session_factory() as session:
+        await session.execute(
+            text("SELECT create_workspace_sequences(:ws_id)"),
+            {"ws_id": workspace_id}
+        )
+        await session.commit()
+        
+    logger.info("Created sequences for workspace", workspace_id=workspace_id)

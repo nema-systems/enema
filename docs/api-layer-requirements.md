@@ -15,6 +15,12 @@
 - **Workspace Access**: Validate user's organization has access to requested workspace
 - **Role-Based Permissions**: Enforce permissions based on organization-workspace role
 
+### Organization Synchronization
+- **Automatic Sync**: Organizations from Clerk JWT tokens must be automatically created/updated in local database
+- **Clerk Integration**: Use `organization_slug` and `clerk_org_id` from JWT to sync organization data
+- **User Context**: Ensure authenticated users always have valid `organization_id` for workspace access
+- **Database Consistency**: Local Organization table must stay synchronized with Clerk organization data
+
 ## Base URL Structure
 ```
 /api/v1/workspaces/{workspaceId}/{resource}

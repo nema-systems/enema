@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 class ClerkTokenData:
-    """Clerk token data model"""
+    """Clerk token data model with organization context"""
     
     def __init__(self, payload: Dict[str, Any]):
         self.sub = payload.get("sub")  # Clerk user ID
@@ -26,6 +26,18 @@ class ClerkTokenData:
         self.groups = []  # Clerk doesn't use groups by default, can be added via metadata
         self.exp = payload.get("exp")
         self.iat = payload.get("iat")
+        
+        # Extract organization context from Clerk token
+        # In Clerk, this might be in org_id, org_slug, or custom claims
+        self.organization_id = payload.get("org_id") or payload.get("organization_id")
+        self.organization_slug = payload.get("org_slug") or payload.get("organization_slug")
+        
+        # Try to extract from public metadata if available
+        public_metadata = payload.get("public_metadata", {})
+        if not self.organization_id and "organization_id" in public_metadata:
+            self.organization_id = public_metadata["organization_id"]
+        if not self.organization_slug and "organization_slug" in public_metadata:
+            self.organization_slug = public_metadata["organization_slug"]
     
     def _extract_username(self, payload: Dict[str, Any]) -> str:
         """Extract username from Clerk token"""
@@ -59,7 +71,13 @@ class ClerkClient:
                     options={"verify_signature": False},
                     algorithms=["RS256"]
                 )
-                logger.info("Token decoded in development mode", user_id=decoded.get("sub"))
+                logger.info("Token decoded in development mode", 
+                          user_id=decoded.get("sub"),
+                          token_keys=list(decoded.keys()),
+                          org_id=decoded.get("org_id"),
+                          org_slug=decoded.get("org_slug"), 
+                          organization_id=decoded.get("organization_id"),
+                          organization_slug=decoded.get("organization_slug"))
                 return ClerkTokenData(decoded)
             else:
                 # In production, implement proper JWKS verification
@@ -85,6 +103,43 @@ class ClerkClient:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token verification failed"
             )
+    
+    async def fetch_organization(self, organization_id: str) -> dict:
+        """Fetch organization details from Clerk API"""
+        if not self.clerk_secret_key:
+            raise ValueError("Clerk secret key not configured")
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"https://api.clerk.com/v1/organizations/{organization_id}",
+                    headers={
+                        "Authorization": f"Bearer {self.clerk_secret_key}",
+                        "Content-Type": "application/json"
+                    }
+                )
+                
+                if response.status_code == 200:
+                    org_data = response.json()
+                    logger.info("Fetched organization from Clerk", 
+                              org_id=organization_id, 
+                              name=org_data.get("name"))
+                    return org_data
+                elif response.status_code == 404:
+                    logger.warning("Organization not found in Clerk", org_id=organization_id)
+                    return None
+                else:
+                    logger.error("Failed to fetch organization from Clerk", 
+                               org_id=organization_id,
+                               status_code=response.status_code,
+                               response=response.text)
+                    return None
+                    
+        except Exception as e:
+            logger.error("Error fetching organization from Clerk", 
+                       org_id=organization_id, 
+                       error=str(e))
+            return None
     
     async def _verify_with_jwks(self, token: str) -> Dict[str, Any]:
         """Verify token using Clerk's JWKS (for production)"""

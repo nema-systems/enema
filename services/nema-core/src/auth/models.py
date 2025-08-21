@@ -25,13 +25,17 @@ class RefreshRequest(BaseModel):
 
 
 class User(BaseModel):
-    """User model"""
+    """User model with Clerk organization context"""
     username: str
     email: Optional[EmailStr] = None
     given_name: Optional[str] = None
     family_name: Optional[str] = None
     groups: List[str] = []
     tenant_id: Optional[str] = None
+    clerk_user_id: Optional[str] = None
+    user_id: Optional[int] = None  # Database user ID
+    organization_id: Optional[int] = None
+    organization_slug: Optional[str] = None
     
     @property
     def full_name(self) -> str:
