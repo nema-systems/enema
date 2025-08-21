@@ -33,7 +33,7 @@ erDiagram
     ORGANIZATION {
         int id PK
         string clerk_org_id
-        string name
+        string slug
         string image_url
         boolean deleted
         datetime created_at
@@ -299,7 +299,7 @@ erDiagram
 
     ORGANIZATION ||--o{ ORGANIZATION_MEMBERSHIP : "has members"
     ORGANIZATION_MEMBERSHIP }o--|| USER : "member"
-    
+
     ORGANIZATION ||--o{ ORGANIZATION_WORKSPACE : "accesses"
     ORGANIZATION_WORKSPACE }o--|| WORKSPACE : "accessed by"
 
@@ -358,7 +358,7 @@ erDiagram
 
     %% Composite Unique Constraints (Database Implementation)
     %% REQ: UNIQUE(req_tree_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
-    %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness  
+    %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% RELEASE: UNIQUE(component_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% ASSET: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
 ```
