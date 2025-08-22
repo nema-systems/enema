@@ -17,6 +17,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
+
 # Pydantic models
 class WorkspaceCreate(BaseModel):
     name: str
@@ -58,8 +59,7 @@ async def validate_workspace_access(
 ) -> Workspace:
     """Validate that current user's organization has access to workspace"""
     
-    # Get user's current organization from JWT token
-    # This should be extracted from Clerk token in production
+    # Get user's current organization (already resolved to internal DB ID by auth)
     current_org_id = getattr(current_user, 'organization_id', None)
     
     if not current_org_id:
@@ -107,7 +107,7 @@ async def list_workspaces(
 ):
     """List accessible workspaces for current organization"""
     
-    # Get user's current organization from JWT token
+    # Get user's current organization (already resolved to internal DB ID by auth)
     current_org_id = getattr(current_user, 'organization_id', None)
     
     if not current_org_id:
@@ -141,7 +141,7 @@ async def list_workspaces(
         WorkspaceResponse(
             id=ws.id,
             name=ws.name,
-            metadata=ws.metadata,
+            metadata=ws.meta_data,
             created_at=ws.created_at.isoformat()
         ) for ws in workspaces
     ]
@@ -164,8 +164,12 @@ async def create_workspace(
 ):
     """Create new workspace"""
     
-    # Get user's current organization from JWT token
+    # Get user's current organization (already resolved to internal DB ID by auth)
     current_org_id = getattr(current_user, 'organization_id', None)
+    
+    logger.info("Workspace creation attempt", 
+               org_id=current_org_id, 
+               user_id=current_user.clerk_user_id)
     
     if not current_org_id:
         raise HTTPException(
@@ -176,7 +180,7 @@ async def create_workspace(
     # Create workspace
     new_workspace = Workspace(
         name=workspace_data.name,
-        metadata=workspace_data.metadata
+        meta_data=workspace_data.metadata
     )
     
     db.add(new_workspace)
@@ -202,7 +206,7 @@ async def create_workspace(
     workspace_response = WorkspaceResponse(
         id=new_workspace.id,
         name=new_workspace.name,
-        metadata=new_workspace.metadata,
+        metadata=new_workspace.meta_data,
         created_at=new_workspace.created_at.isoformat()
     )
     
@@ -225,7 +229,7 @@ async def get_workspace(
     workspace_response = WorkspaceResponse(
         id=workspace.id,
         name=workspace.name,
-        metadata=workspace.metadata,
+        metadata=workspace.meta_data,
         created_at=workspace.created_at.isoformat()
     )
     
@@ -251,7 +255,7 @@ async def update_workspace(
     if workspace_data.name is not None:
         workspace.name = workspace_data.name
     if workspace_data.metadata is not None:
-        workspace.metadata = workspace_data.metadata
+        workspace.meta_data = workspace_data.metadata
     
     await db.commit()
     await db.refresh(workspace)
@@ -261,7 +265,7 @@ async def update_workspace(
     workspace_response = WorkspaceResponse(
         id=workspace.id,
         name=workspace.name,
-        metadata=workspace.metadata,
+        metadata=workspace.meta_data,
         created_at=workspace.created_at.isoformat()
     )
     

@@ -74,11 +74,27 @@ function Dashboard() {
   // Debug state for local organizations and token
   const [localOrganizations, setLocalOrganizations] = useState<any[]>([]);
   const [currentToken, setCurrentToken] = useState<string | null>(null);
+  const [decodedToken, setDecodedToken] = useState<any>(null);
   
   // UI State
   const [activeView, setActiveView] = useState<'dashboard' | 'requirements' | 'parameters' | 'testcases' | 'projects'>('dashboard');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper function to decode JWT token (without verification)
+  const decodeJWT = (token: string) => {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      
+      const payload = parts[1];
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      return decoded;
+    } catch (error) {
+      console.error('Error decoding JWT:', error);
+      return null;
+    }
+  };
 
   // Debug: Fetch local organizations and update current token
   const fetchLocalOrganizations = async () => {
@@ -87,6 +103,10 @@ function Dashboard() {
 
     // Store the current token for display
     setCurrentToken(token);
+    
+    // Decode and store JWT payload for debugging
+    const decoded = decodeJWT(token);
+    setDecodedToken(decoded);
 
     try {
       const response = await fetch(
@@ -117,7 +137,7 @@ function Dashboard() {
     setError(null);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces/`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -125,10 +145,10 @@ function Dashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setWorkspaces(data.data?.items || []);
+        setWorkspaces(data.data || []);
         // Auto-select first workspace if available
-        if (data.data?.items?.length > 0 && !selectedWorkspaceId) {
-          setSelectedWorkspaceId(data.data.items[0].id);
+        if (data.data?.length > 0 && !selectedWorkspaceId) {
+          setSelectedWorkspaceId(data.data[0].id);
         }
       } else {
         setError('Failed to fetch workspaces');
@@ -163,7 +183,7 @@ function Dashboard() {
     setError(null);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces/${selectedWorkspaceId}/requirements`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces//${selectedWorkspaceId}/requirements`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -211,7 +231,7 @@ function Dashboard() {
       };
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces/${selectedWorkspaceId}/requirements`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces//${selectedWorkspaceId}/requirements`,
         {
           method: 'POST',
           headers: {
@@ -248,7 +268,7 @@ function Dashboard() {
     setError(null);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces/${selectedWorkspaceId}/projects`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces//${selectedWorkspaceId}/projects`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -292,7 +312,7 @@ function Dashboard() {
       };
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces/${selectedWorkspaceId}/projects`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces//${selectedWorkspaceId}/projects`,
         {
           method: 'POST',
           headers: {
@@ -324,6 +344,10 @@ function Dashboard() {
     const token = await getToken({ template: "default" });
     if (!token) return;
 
+    // Debug: Log the token being used for workspace creation
+    const decoded = decodeJWT(token);
+    console.log('Workspace creation token:', decoded);
+
     const name = prompt('Enter workspace name:');
     if (!name) return;
 
@@ -339,7 +363,7 @@ function Dashboard() {
       };
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/v1/workspaces/`,
         {
           method: 'POST',
           headers: {
@@ -461,6 +485,29 @@ function Dashboard() {
             >
               Copy Token
             </button>
+            
+            {decodedToken && (
+              <div style={{ marginTop: "15px" }}>
+                <h4 style={{ margin: "0 0 10px 0", fontSize: "14px" }}>Decoded JWT Payload:</h4>
+                <div style={{ 
+                  backgroundColor: "#e9ecef", 
+                  padding: "10px", 
+                  border: "1px solid #ced4da",
+                  borderRadius: "4px",
+                  fontFamily: "monospace",
+                  fontSize: "11px",
+                  maxHeight: "150px",
+                  overflowY: "auto"
+                }}>
+                  {JSON.stringify(decodedToken, null, 2)}
+                </div>
+                <div style={{ marginTop: "8px", fontSize: "12px" }}>
+                  <strong>Organization ID:</strong> {decodedToken.org_id || decodedToken.organization_id || 'Not found'}
+                  <br />
+                  <strong>Organization Slug:</strong> {decodedToken.org_slug || decodedToken.organization_slug || 'Not found'}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <p style={{ color: "#666", fontStyle: "italic" }}>No token available</p>
