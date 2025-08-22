@@ -133,6 +133,9 @@ const RequirementsView = () => {
   useEffect(() => {
     if (workspaceId) {
       dispatch(setSelectedWorkspaceId(workspaceId));
+    }
+    
+    if (workspaceId) {
       fetchWorkspace();
       fetchRequirements();
     }
@@ -189,125 +192,104 @@ const RequirementsView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white shadow-sm rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => navigate("/")}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  ← Back to Workspaces
-                </button>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {(workspace || workspaceDetails) ? `${(workspace || workspaceDetails)!.name} - Requirements` : "Requirements"}
-                  </h1>
-                  {(workspace || workspaceDetails)?.description && (
-                    <p className="text-gray-600 mt-1">{(workspace || workspaceDetails)!.description}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <OrganizationSwitcher 
-                  hidePersonal={false}
-                  appearance={{
-                    elements: {
-                      organizationSwitcherTrigger: "px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md"
-                    }
-                  }}
-                />
-                <button
-                  onClick={createRequirement}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                >
-                  Create Requirement
-                </button>
-              </div>
-            </div>
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Requirements</h1>
+            {(workspace || workspaceDetails)?.description && (
+              <p className="text-gray-600 mt-1">{(workspace || workspaceDetails)!.description}</p>
+            )}
+          </div>
+          <div>
+            <button
+              onClick={createRequirement}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+            >
+              Create Requirement
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="bg-white shadow-sm rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">
-                Requirements ({filteredAndSortedRequirements.length} of {requirements.length})
-              </h2>
-            </div>
-            
-            {/* Filters and Sorting */}
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex items-center space-x-2">
-                <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
-                  Status:
-                </label>
-                <select
-                  id="status-filter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All</option>
-                  <option value="draft">Draft</option>
-                  <option value="review">Review</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label htmlFor="priority-filter" className="text-sm font-medium text-gray-700">
-                  Priority:
-                </label>
-                <select
-                  id="priority-filter"
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All</option>
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label htmlFor="sort-by" className="text-sm font-medium text-gray-700">
-                  Sort by:
-                </label>
-                <select
-                  id="sort-by"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="created_at">Date Created</option>
-                  <option value="name">Name</option>
-                  <option value="priority">Priority</option>
-                  <option value="status">Status</option>
-                </select>
-              </div>
-              
-              {(statusFilter !== "all" || priorityFilter !== "all") && (
-                <button
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setPriorityFilter("all");
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
+      {/* Content */}
+      <div className="bg-white shadow-sm rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-medium text-gray-900">
+              Requirements ({filteredAndSortedRequirements.length} of {requirements.length})
+            </h2>
           </div>
+            
+          {/* Filters and Sorting */}
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center space-x-2">
+              <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
+                Status:
+              </label>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All</option>
+                <option value="draft">Draft</option>
+                <option value="review">Review</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+              
+            <div className="flex items-center space-x-2">
+              <label htmlFor="priority-filter" className="text-sm font-medium text-gray-700">
+                Priority:
+              </label>
+              <select
+                id="priority-filter"
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+              
+            <div className="flex items-center space-x-2">
+              <label htmlFor="sort-by" className="text-sm font-medium text-gray-700">
+                Sort by:
+              </label>
+              <select
+                id="sort-by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="created_at">Date Created</option>
+                <option value="name">Name</option>
+                <option value="priority">Priority</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
+              
+            {(statusFilter !== "all" || priorityFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
 
           <div className="p-6">
             {loading ? (
@@ -351,7 +333,8 @@ const RequirementsView = () => {
                 {filteredAndSortedRequirements.map((requirement) => (
                   <div
                     key={requirement.id}
-                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/workspace/${workspaceId}/requirements/${requirement.id}`)}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
@@ -380,7 +363,6 @@ const RequirementsView = () => {
                 ))}
               </div>
             )}
-          </div>
         </div>
       </div>
     </div>

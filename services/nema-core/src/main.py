@@ -74,14 +74,16 @@ app = FastAPI(
 )
 
 # Configure CORS
+settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # client-app
         "http://localhost:3001",  # client-admin  
         "http://localhost:3002",  # client-landing
-        "http://localhost:3003",  # client-app (alternate port)
+        "http://localhost:3003",  # sandbox client-app
         "http://localhost:8080",  # temporal-webui
+        "http://localhost:8088",  # temporal-webui-alt
     ],
     allow_credentials=True,
     allow_methods=["*"],

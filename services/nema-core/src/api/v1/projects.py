@@ -141,7 +141,7 @@ async def list_projects(
             workspace_id=project.workspace_id,
             name=project.name,
             description=project.description,
-            metadata=project.metadata,
+            metadata=project.meta_data,
             created_at=project.created_at.isoformat()
         ) for project in projects
     ]
@@ -183,7 +183,7 @@ async def create_project(
         workspace_id=workspace_id,
         name=project_data.name,
         description=project_data.description,
-        metadata=project_data.metadata
+        meta_data=project_data.metadata
     )
     
     db.add(new_project)
@@ -200,7 +200,7 @@ async def create_project(
         workspace_id=new_project.workspace_id,
         name=new_project.name,
         description=new_project.description,
-        metadata=new_project.metadata,
+        metadata=new_project.meta_data,
         created_at=new_project.created_at.isoformat()
     )
     
@@ -230,7 +230,7 @@ async def get_project(
         workspace_id=project.workspace_id,
         name=project.name,
         description=project.description,
-        metadata=project.metadata,
+        metadata=project.meta_data,
         created_at=project.created_at.isoformat()
     )
     
@@ -262,7 +262,7 @@ async def update_project(
     if project_data.description is not None:
         project.description = project_data.description
     if project_data.metadata is not None:
-        project.metadata = project_data.metadata
+        project.meta_data = project_data.metadata
     
     await db.commit()
     await db.refresh(project)
@@ -276,7 +276,7 @@ async def update_project(
         workspace_id=project.workspace_id,
         name=project.name,
         description=project.description,
-        metadata=project.metadata,
+        metadata=project.meta_data,
         created_at=project.created_at.isoformat()
     )
     

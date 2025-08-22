@@ -1,0 +1,258 @@
+import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  setProjects,
+  addProject,
+  setLoading,
+  setError,
+  clearProjects,
+} from "../store/projects/projects.slice";
+import {
+  selectProjects,
+  selectProjectsLoading,
+  selectProjectsError,
+} from "../store/projects/projects.selectors";
+import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selectors";
+import LoadingSpinner from "../components/ui/loading-spinner";
+import ErrorMessage from "../components/ui/error-message";
+
+interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+}
+
+interface Workspace {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+const ProjectsView = () => {
+  const { workspaceId } = useParams();
+  const navigate = useNavigate();
+  const { getToken } = useAuth();
+  const dispatch = useAppDispatch();
+  
+  const projects = useAppSelector(selectProjects);
+  const loading = useAppSelector(selectProjectsLoading);
+  const error = useAppSelector(selectProjectsError);
+  const workspace = useAppSelector(selectSelectedWorkspace);
+  
+  const [workspaceDetails, setWorkspaceDetails] = useState<Workspace | null>(null);
+
+  const fetchWorkspace = async () => {
+    if (!workspaceId) return;
+    
+    try {
+      const token = await getToken({ template: "default" });
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setWorkspaceDetails(response.data.data);
+    } catch (err: any) {
+      console.error("Error fetching workspace:", err);
+    }
+  };
+
+  const fetchProjects = async () => {
+    if (!workspaceId) return;
+    
+    try {
+      dispatch(setLoading(true));
+      const token = await getToken({ template: "default" });
+      
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/projects`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      dispatch(setProjects(response.data.data?.items || response.data.data || []));
+      dispatch(setError(null));
+    } catch (err: any) {
+      console.error("Error fetching projects:", err);
+      dispatch(setError(err.response?.data?.message || "Failed to fetch projects"));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
+  const createProject = async () => {
+    if (!workspaceId) return;
+
+    const name = prompt("Enter project name:");
+    if (!name) return;
+
+    const description = prompt("Enter project description (optional):") || "";
+
+    try {
+      const token = await getToken({ template: "default" });
+      
+      const response = await axios.post(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/projects`,
+        {
+          name,
+          description,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      
+      dispatch(addProject(response.data.data));
+    } catch (err: any) {
+      console.error("Error creating project:", err);
+      alert(err.response?.data?.message || "Failed to create project");
+    }
+  };
+
+  useEffect(() => {
+    if (workspaceId) {
+      fetchWorkspace();
+      fetchProjects();
+    }
+    
+    return () => {
+      dispatch(clearProjects());
+    };
+  }, [workspaceId, dispatch]);
+
+  const getBgColorFromId = (id: number) => {
+    const colors = [
+      'bg-blue-500',
+      'bg-green-500', 
+      'bg-purple-500',
+      'bg-red-500',
+      'bg-yellow-500',
+      'bg-indigo-500',
+      'bg-pink-500',
+      'bg-teal-500'
+    ];
+    return colors[id % colors.length];
+  };
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+            {(workspace || workspaceDetails)?.description && (
+              <p className="text-gray-600 mt-1">{(workspace || workspaceDetails)!.description}</p>
+            )}
+          </div>
+          <div>
+            <button
+              onClick={createProject}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+            >
+              Create Project
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="bg-white shadow-sm rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">
+            Projects ({projects.length})
+          </h2>
+        </div>
+
+        <div className="p-6">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : error ? (
+            <div className="py-6">
+              <ErrorMessage 
+                title="Failed to load projects"
+                message={error}
+                onRetry={fetchProjects}
+              />
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="text-center py-12">
+              <svg
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="mx-auto h-12 w-12 text-gray-400"
+              >
+                <path
+                  d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3 className="mt-2 text-sm font-semibold text-gray-900">No projects</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Get started by creating your first project.
+              </p>
+              <div className="mt-6">
+                <button
+                  onClick={createProject}
+                  className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                >
+                  <svg className="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                  </svg>
+                  New Project
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {projects.map((project) => (
+                <div
+                  key={project.id}
+                  className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                  onClick={() => {
+                    // TODO: Navigate to project details or requirements filtered by project
+                    console.log("Navigate to project:", project.id);
+                  }}
+                >
+                  <div className="flex">
+                    <div className={`w-1 ${getBgColorFromId(project.id)} flex-shrink-0`} />
+                    <div className="p-4 flex-1">
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        {project.name}
+                      </h3>
+                      {project.description && (
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                          {project.description}
+                        </p>
+                      )}
+                      <p className="text-gray-400 text-xs">
+                        Created: {new Date(project.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProjectsView;

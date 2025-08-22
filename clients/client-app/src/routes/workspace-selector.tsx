@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuth, useUser, OrganizationSwitcher } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -88,20 +88,12 @@ const WorkspaceSelector = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-lg rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Workspaces</h1>
-            <div className="flex items-center space-x-4">
-              <OrganizationSwitcher 
-                hidePersonal={false}
-                appearance={{
-                  elements: {
-                    organizationSwitcherTrigger: "px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-                  }
-                }}
-              />
+            <div>
               <button
                 onClick={createWorkspace}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -139,18 +131,37 @@ const WorkspaceSelector = () => {
                 {workspaces.map((workspace) => (
                   <div
                     key={workspace.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => {
-                      navigate(`/workspace/${workspace.id}/requirements`);
-                    }}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <h3 className="font-semibold text-gray-900 mb-2">{workspace.name}</h3>
                     {workspace.description && (
-                      <p className="text-gray-600 text-sm mb-2">{workspace.description}</p>
+                      <p className="text-gray-600 text-sm mb-3">{workspace.description}</p>
                     )}
-                    <p className="text-gray-400 text-xs">
+                    <p className="text-gray-400 text-xs mb-4">
                       Created: {new Date(workspace.created_at).toLocaleDateString()}
                     </p>
+                    
+                    {/* Action buttons */}
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/workspace/${workspace.id}/projects`);
+                        }}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-3 rounded text-sm transition-colors"
+                      >
+                        Projects
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/workspace/${workspace.id}/requirements`);
+                        }}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded text-sm transition-colors"
+                      >
+                        Requirements
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
