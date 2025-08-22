@@ -251,7 +251,7 @@ async def list_testcases(
             expected_results=tc.expected_results,
             execution_mode=tc.execution_mode,
             notes=tc.notes,
-            metadata=tc.metadata,
+            metadata=tc.meta_data,
             created_at=tc.created_at.isoformat()
         ) for tc in testcases
     ]
@@ -296,7 +296,7 @@ async def create_testcase(
         expected_results=testcase_data.expected_results,
         execution_mode=testcase_data.execution_mode,
         notes=testcase_data.notes,
-        metadata=testcase_data.metadata
+        meta_data=testcase_data.metadata
     )
     
     db.add(new_testcase)
@@ -318,7 +318,7 @@ async def create_testcase(
         expected_results=new_testcase.expected_results,
         execution_mode=new_testcase.execution_mode,
         notes=new_testcase.notes,
-        metadata=new_testcase.metadata,
+        metadata=new_testcase.meta_data,
         created_at=new_testcase.created_at.isoformat()
     )
     
@@ -352,7 +352,7 @@ async def get_testcase(
         expected_results=testcase.expected_results,
         execution_mode=testcase.execution_mode,
         notes=testcase.notes,
-        metadata=testcase.metadata,
+        metadata=testcase.meta_data,
         created_at=testcase.created_at.isoformat()
     )
     
@@ -390,7 +390,7 @@ async def update_testcase(
     if testcase_data.notes is not None:
         testcase.notes = testcase_data.notes
     if testcase_data.metadata is not None:
-        testcase.metadata = testcase_data.metadata
+        testcase.meta_data = testcase_data.metadata
     
     await db.commit()
     await db.refresh(testcase)
@@ -409,7 +409,7 @@ async def update_testcase(
         expected_results=testcase.expected_results,
         execution_mode=testcase.execution_mode,
         notes=testcase.notes,
-        metadata=testcase.metadata,
+        metadata=testcase.meta_data,
         created_at=testcase.created_at.isoformat()
     )
     
@@ -470,7 +470,7 @@ async def create_testrun(
         executor_id=executor_id,
         result=testrun_data.result,
         executed_at=testrun_data.executed_at,
-        metadata=testrun_data.metadata
+        meta_data=testrun_data.metadata
     )
     
     db.add(new_testrun)
@@ -489,7 +489,7 @@ async def create_testrun(
         executor_id=new_testrun.executor_id,
         result=new_testrun.result,
         executed_at=new_testrun.executed_at.isoformat(),
-        metadata=new_testrun.metadata,
+        metadata=new_testrun.meta_data,
         created_at=new_testrun.created_at.isoformat()
     )
     
@@ -524,7 +524,7 @@ async def update_testrun(
     if testrun_data.executed_at is not None:
         testrun.executed_at = testrun_data.executed_at
     if testrun_data.metadata is not None:
-        testrun.metadata = testrun_data.metadata
+        testrun.meta_data = testrun_data.metadata
     
     await db.commit()
     await db.refresh(testrun)
@@ -540,7 +540,7 @@ async def update_testrun(
         executor_id=testrun.executor_id,
         result=testrun.result,
         executed_at=testrun.executed_at.isoformat(),
-        metadata=testrun.metadata,
+        metadata=testrun.meta_data,
         created_at=testrun.created_at.isoformat()
     )
     

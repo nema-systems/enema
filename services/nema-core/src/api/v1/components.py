@@ -164,7 +164,7 @@ async def list_components(
             description=comp.description,
             rules=comp.rules,
             shared=comp.shared,
-            metadata=comp.metadata,
+            metadata=comp.meta_data,
             created_at=comp.created_at.isoformat()
         ) for comp in components
     ]
@@ -225,7 +225,7 @@ async def create_component(
         description=component_data.description,
         rules=component_data.rules,
         shared=component_data.shared,
-        metadata=component_data.metadata
+        meta_data=component_data.metadata
     )
     
     db.add(new_component)
@@ -245,7 +245,7 @@ async def create_component(
         description=new_component.description,
         rules=new_component.rules,
         shared=new_component.shared,
-        metadata=new_component.metadata,
+        metadata=new_component.meta_data,
         created_at=new_component.created_at.isoformat()
     )
     
@@ -278,7 +278,7 @@ async def get_component(
         description=component.description,
         rules=component.rules,
         shared=component.shared,
-        metadata=component.metadata,
+        metadata=component.meta_data,
         created_at=component.created_at.isoformat()
     )
     
@@ -314,7 +314,7 @@ async def update_component(
     if component_data.shared is not None:
         component.shared = component_data.shared
     if component_data.metadata is not None:
-        component.metadata = component_data.metadata
+        component.meta_data = component_data.metadata
     
     await db.commit()
     await db.refresh(component)
@@ -331,7 +331,7 @@ async def update_component(
         description=component.description,
         rules=component.rules,
         shared=component.shared,
-        metadata=component.metadata,
+        metadata=component.meta_data,
         created_at=component.created_at.isoformat()
     )
     

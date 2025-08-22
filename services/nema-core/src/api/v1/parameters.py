@@ -170,24 +170,24 @@ async def list_parameters(
             Param.description.ilike(f"%{search}%")
         )
     
-    # Remove duplicates
-    query = query.distinct()
-    
-    # Apply sorting
+    # Apply sorting first, then handle distinct
     if order == "desc":
         if sort == "created_at":
-            query = query.order_by(Param.created_at.desc())
+            query = query.order_by(Param.id, Param.created_at.desc())
         elif sort == "name":
-            query = query.order_by(Param.name.desc())
+            query = query.order_by(Param.id, Param.name.desc())
         else:
-            query = query.order_by(Param.created_at.desc())
+            query = query.order_by(Param.id, Param.created_at.desc())
     else:
         if sort == "created_at":
-            query = query.order_by(Param.created_at.asc())
+            query = query.order_by(Param.id, Param.created_at.asc())
         elif sort == "name":
-            query = query.order_by(Param.name.asc())
+            query = query.order_by(Param.id, Param.name.asc())
         else:
-            query = query.order_by(Param.created_at.asc())
+            query = query.order_by(Param.id, Param.created_at.asc())
+    
+    # Remove duplicates (distinct on ID to avoid JSON field comparison issues)
+    query = query.distinct(Param.id)
     
     # Count total for pagination
     count_query = select(func.count()).select_from(query.subquery())
@@ -213,7 +213,7 @@ async def list_parameters(
             value=param.value,
             group_id=param.group_id,
             version_number=param.version_number,
-            metadata=param.metadata,
+            metadata=param.meta_data,
             created_at=param.created_at.isoformat()
         ) for param in parameters
     ]
@@ -262,7 +262,7 @@ async def create_parameter(
         value=param_data.value,
         group_id=param_data.group_id,
         version_number=1,
-        metadata=param_data.metadata
+        meta_data=param_data.metadata
     )
     
     db.add(new_param)
@@ -290,7 +290,7 @@ async def create_parameter(
         value=new_param.value,
         group_id=new_param.group_id,
         version_number=new_param.version_number,
-        metadata=new_param.metadata,
+        metadata=new_param.meta_data,
         created_at=new_param.created_at.isoformat()
     )
     
@@ -326,7 +326,7 @@ async def get_parameter(
         value=parameter.value,
         group_id=parameter.group_id,
         version_number=parameter.version_number,
-        metadata=parameter.metadata,
+        metadata=parameter.meta_data,
         created_at=parameter.created_at.isoformat()
     )
     
@@ -364,7 +364,7 @@ async def update_parameter(
     if param_data.group_id is not None:
         parameter.group_id = param_data.group_id
     if param_data.metadata is not None:
-        parameter.metadata = param_data.metadata
+        parameter.meta_data = param_data.metadata
     
     await db.commit()
     await db.refresh(parameter)
@@ -384,7 +384,7 @@ async def update_parameter(
         value=parameter.value,
         group_id=parameter.group_id,
         version_number=parameter.version_number,
-        metadata=parameter.metadata,
+        metadata=parameter.meta_data,
         created_at=parameter.created_at.isoformat()
     )
     
@@ -457,7 +457,7 @@ async def create_parameter_version(
         description=version_data.description if version_data.description is not None else latest_version.description,
         value=version_data.value if version_data.value is not None else latest_version.value,
         group_id=version_data.group_id if version_data.group_id is not None else latest_version.group_id,
-        metadata=version_data.metadata if version_data.metadata is not None else latest_version.metadata,
+        meta_data=version_data.metadata if version_data.metadata is not None else latest_version.meta_data,
         version_number=latest_version.version_number + 1
     )
     
@@ -481,7 +481,7 @@ async def create_parameter_version(
         value=new_version.value,
         group_id=new_version.group_id,
         version_number=new_version.version_number,
-        metadata=new_version.metadata,
+        metadata=new_version.meta_data,
         created_at=new_version.created_at.isoformat()
     )
     

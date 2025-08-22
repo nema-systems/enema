@@ -2,6 +2,10 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useUser, SignIn } from "@clerk/clerk-react";
 import RequirementsView from "./requirements-view";
 import ProjectsView from "./projects-view";
+import ComponentsView from "./components-view";
+import ParametersView from "./parameters-view";
+import TestCasesView from "./testcases-view";
+import AssetsView from "./assets-view";
 import RequirementDetail from "./requirement-detail";
 import ApplicationShell from "../components/application-shell";
 import NemaLogo from "../icons/nema-logo";
@@ -10,9 +14,13 @@ const LoggedInMainRouter = () => {
   return (
     <ApplicationShell>
       <Routes>
-        <Route path="/" element={<div className="p-6 text-center text-gray-500">Loading workspaces...</div>} />
+        <Route path="/" element={<div className="p-6 text-center text-gray-500 dark:text-gray-400">Loading workspaces...</div>} />
         <Route path="/workspace/:workspaceId/projects" element={<ProjectsView />} />
         <Route path="/workspace/:workspaceId/requirements" element={<RequirementsView />} />
+        <Route path="/workspace/:workspaceId/components" element={<ComponentsView />} />
+        <Route path="/workspace/:workspaceId/parameters" element={<ParametersView />} />
+        <Route path="/workspace/:workspaceId/testcases" element={<TestCasesView />} />
+        <Route path="/workspace/:workspaceId/assets" element={<AssetsView />} />
         <Route path="/workspace/:workspaceId/requirements/:requirementId" element={<RequirementDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

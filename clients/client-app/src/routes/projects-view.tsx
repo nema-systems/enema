@@ -157,7 +157,7 @@ const ProjectsView = () => {
           <div>
             <button
               onClick={createProject}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Create Project
             </button>
@@ -166,9 +166,9 @@ const ProjectsView = () => {
       </div>
 
       {/* Content */}
-      <div className="bg-white shadow-sm rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">
+      <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">
             Projects ({projects.length})
           </h2>
         </div>
@@ -202,14 +202,14 @@ const ProjectsView = () => {
                   strokeLinejoin="round"
                 />
               </svg>
-              <h3 className="mt-2 text-sm font-semibold text-gray-900">No projects</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No projects</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Get started by creating your first project.
               </p>
               <div className="mt-6">
                 <button
                   onClick={createProject}
-                  className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <svg className="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
@@ -223,7 +223,7 @@ const ProjectsView = () => {
               {projects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
                   onClick={() => {
                     // TODO: Navigate to project details or requirements filtered by project
                     console.log("Navigate to project:", project.id);
@@ -232,15 +232,15 @@ const ProjectsView = () => {
                   <div className="flex">
                     <div className={`w-1 ${getBgColorFromId(project.id)} flex-shrink-0`} />
                     <div className="p-4 flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                         {project.name}
                       </h3>
                       {project.description && (
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
                           {project.description}
                         </p>
                       )}
-                      <p className="text-gray-400 text-xs">
+                      <p className="text-gray-400 dark:text-gray-500 text-xs">
                         Created: {new Date(project.created_at).toLocaleDateString()}
                       </p>
                     </div>

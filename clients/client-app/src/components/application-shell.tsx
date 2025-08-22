@@ -4,13 +4,20 @@ import {
   Bars3Icon,
   XMarkIcon,
   HomeIcon,
-  FolderIcon,
+  RectangleGroupIcon,
   DocumentTextIcon,
+  DocumentIcon,
+  ClipboardDocumentListIcon,
   PlusIcon,
   CogIcon,
+  Cog6ToothIcon,
   SunIcon,
   MoonIcon,
   ComputerDesktopIcon,
+  CubeIcon,
+  AdjustmentsHorizontalIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { OrganizationSwitcher, UserButton, useAuth, useUser, useOrganization } from "@clerk/clerk-react";
 import axios from "axios";
@@ -26,36 +33,46 @@ interface NavigationItemProps {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   current?: boolean;
   count?: number;
+  collapsed?: boolean;
 }
 
-const NavigationItem: React.FC<NavigationItemProps> = ({ name, href, icon: Icon, current, count }) => {
+const NavigationItem: React.FC<NavigationItemProps> = ({ name, href, icon: Icon, current, count, collapsed }) => {
   return (
     <NavLink
       to={href}
       className={({ isActive }) =>
         `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+          collapsed ? 'justify-center' : ''
+        } ${
           isActive || current
             ? 'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100'
             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'
         }`
       }
+      title={collapsed ? name : undefined}
     >
       <Icon
-        className={`mr-3 flex-shrink-0 h-5 w-5 transition-colors ${
+        className={`flex-shrink-0 h-5 w-5 transition-colors ${
+          collapsed ? '' : 'mr-3'
+        } ${
           current ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400'
         }`}
       />
-      <span className="flex-1">{name}</span>
-      {count !== undefined && (
-        <span
-          className={`ml-3 inline-block py-0.5 px-2 text-xs rounded-full ${
-            current
-              ? 'bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100'
-              : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:group-hover:bg-gray-600'
-          }`}
-        >
-          {count}
-        </span>
+      {!collapsed && (
+        <>
+          <span className="flex-1">{name}</span>
+          {count !== undefined && (
+            <span
+              className={`ml-3 inline-block py-0.5 px-2 text-xs rounded-full ${
+                current
+                  ? 'bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100'
+                  : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:group-hover:bg-gray-600'
+              }`}
+            >
+              {count}
+            </span>
+          )}
+        </>
       )}
     </NavLink>
   );
@@ -67,6 +84,7 @@ interface ApplicationShellProps {
 
 const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspacesLoaded, setWorkspacesLoaded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
@@ -191,23 +209,49 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
     {
       name: 'Projects',
       href: `/workspace/${navigationWorkspace.id}/projects`,
-      icon: FolderIcon,
+      icon: RectangleGroupIcon,
     },
     {
       name: 'Requirements',
       href: `/workspace/${navigationWorkspace.id}/requirements`,
       icon: DocumentTextIcon,
     },
+    {
+      name: 'Components',
+      href: `/workspace/${navigationWorkspace.id}/components`,
+      icon: CubeIcon,
+    },
+    {
+      name: 'Parameters',
+      href: `/workspace/${navigationWorkspace.id}/parameters`,
+      icon: AdjustmentsHorizontalIcon,
+    },
+    {
+      name: 'Test Cases',
+      href: `/workspace/${navigationWorkspace.id}/testcases`,
+      icon: ClipboardDocumentListIcon,
+    },
+    {
+      name: 'Assets',
+      href: `/workspace/${navigationWorkspace.id}/assets`,
+      icon: DocumentIcon,
+    },
   ] : [];
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 px-6 pb-4">
-      <div className="flex h-16 shrink-0 items-center">
-        <button onClick={() => navigate('/')} className="flex items-center">
-          <div className="h-8 w-8 text-blue-600 dark:text-blue-400">
+    <div className={`flex grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 pb-4 transition-all duration-300 ${
+      !mobile && sidebarCollapsed ? 'w-16 px-2' : 'px-6'
+    }`}>
+      <div className={`flex h-16 shrink-0 items-center ${
+        !mobile && sidebarCollapsed ? 'justify-center' : ''
+      }`}>
+        <button onClick={() => navigate('/')} className="flex items-center min-w-0">
+          <div className="h-8 w-8 text-blue-600 dark:text-blue-400 flex-shrink-0">
             <NemaLogo />
           </div>
-          <span className="ml-2 text-lg font-semibold text-gray-900 dark:text-white">Nema</span>
+          {(!sidebarCollapsed || mobile) && (
+            <span className="ml-2 text-lg font-semibold text-gray-900 dark:text-white truncate">Nema</span>
+          )}
         </button>
       </div>
       
@@ -217,39 +261,74 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((item) => (
                 <li key={item.name}>
-                  <NavigationItem {...item} />
+                  <NavigationItem {...item} collapsed={!mobile && sidebarCollapsed} />
                 </li>
               ))}
             </ul>
           </li>
         </ul>
+        
+        {/* Collapse toggle button */}
+        {!mobile && (
+          <div className="flex justify-center py-2">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRightIcon className="h-5 w-5" />
+              ) : (
+                <ChevronLeftIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        )}
       </nav>
 
       <div className="mt-auto space-y-4">
-        <div className="border-t pt-4 space-y-3">
-          <OrganizationSwitcher 
-            hidePersonal={false}
-            appearance={{
-              elements: {
-                organizationSwitcherTrigger: "w-full px-2 py-2 text-left text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md"
-              }
-            }}
-          />
-          
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <UserButton 
+        {(!sidebarCollapsed || mobile) && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+            <OrganizationSwitcher 
+              hidePersonal={false}
               appearance={{
+                baseTheme: theme === 'dark' ? 'dark' : 'light',
                 elements: {
-                  userButtonAvatarBox: "w-8 h-8",
-                  userButtonPopoverCard: "w-64"
+                  organizationSwitcherTrigger: {
+                    width: '100%',
+                    padding: '8px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    borderRadius: '6px',
+                    transition: 'all 0.2s ease',
+                    backgroundColor: 'transparent',
+                    color: theme === 'dark' ? '#d1d5db' : '#4b5563',
+                    '&:hover': {
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#f9fafb',
+                      color: theme === 'dark' ? '#ffffff' : '#111827'
+                    }
+                  }
                 }
               }}
             />
-            <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Account</span>
           </div>
+        )}
+        
+        <div className={`flex items-center ${sidebarCollapsed && !mobile ? 'justify-center' : 'justify-between'}`}>
+          {(!sidebarCollapsed || mobile) && (
+            <div className="flex items-center">
+              <UserButton 
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "w-8 h-8",
+                    userButtonPopoverCard: "w-64"
+                  }
+                }}
+              />
+              <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Account</span>
+            </div>
+          )}
           
           {/* Settings dropdown */}
           <div className="relative" data-settings-dropdown>
@@ -257,14 +336,49 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
               onClick={() => setSettingsOpen(!settingsOpen)}
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
               aria-label="Settings"
+              title="Settings"
             >
-              <CogIcon className="w-5 h-5" />
+              <Cog6ToothIcon className="w-5 h-5" />
             </button>
-            
-            {settingsOpen && (
-              <div className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Handle clicks outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (settingsOpen && !target.closest('[data-settings-dropdown]')) {
+        setSettingsOpen(false);
+      }
+    };
+
+    if (settingsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [settingsOpen]);
+
+  // Render settings dropdown as a portal-like element outside the sidebar
+  const SettingsDropdown = () => {
+    if (!settingsOpen) return null;
+
+    return (
+      <div 
+        className={`fixed w-56 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-[9999] ${
+          sidebarCollapsed
+            ? 'bottom-20 left-20'  // When collapsed, position from viewport
+            : 'bottom-20 left-60'  // When expanded, position from viewport
+        }`}
+        data-settings-dropdown
+      >
                 {/* Workspace Selection */}
-                {workspacesLoaded && (
+                {workspacesLoaded ? (
                   <>
                     <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
                       Workspace
@@ -274,10 +388,9 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
                         <select
                           value={selectedWorkspace?.id || ''}
                           onChange={(e) => {
-                            const workspace = workspaces.find(w => w.id === e.target.value);
+                            const workspace = workspaces.find(w => String(w.id) === String(e.target.value));
                             if (workspace) {
                               dispatch(setSelectedWorkspaceId(workspace.id));
-                              // Navigate to projects page of selected workspace
                               navigate(`/workspace/${workspace.id}/projects`);
                               setSettingsOpen(false);
                             }
@@ -296,6 +409,17 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
                           No workspaces available
                         </div>
                       )}
+                    </div>
+                    <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                      Workspace
+                    </div>
+                    <div className="px-3 py-2 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
+                      <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading...</span>
                     </div>
                     <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
                   </>
@@ -346,13 +470,9 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
                   System
                   {theme === 'system' && <div className="ml-auto w-2 h-2 bg-indigo-600 dark:bg-indigo-400 rounded-full"></div>}
                 </button>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -373,28 +493,34 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
               sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
           >
-            <div className="absolute top-0 right-0 -mr-12 pt-2">
-              <button
-                type="button"
-                className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <span className="sr-only">Close sidebar</span>
-                <XMarkIcon className="h-6 w-6 text-white" />
-              </button>
-            </div>
+{sidebarOpen && (
+              <div className="absolute top-0 right-0 -mr-12 pt-2">
+                <button
+                  type="button"
+                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <span className="sr-only">Close sidebar</span>
+                  <XMarkIcon className="h-6 w-6 text-white" />
+                </button>
+              </div>
+            )}
             <Sidebar mobile />
           </div>
           <div className="flex-shrink-0 w-14" />
         </div>
 
         {/* Desktop sidebar */}
-        <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
+        <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+        }`}>
           <Sidebar />
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col lg:pl-64 bg-gray-50 dark:bg-gray-900">
+        <div className={`flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
+        }`}>
           {/* Mobile header */}
           <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white dark:bg-gray-800 shadow lg:hidden">
             <button
@@ -423,6 +549,9 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
           </main>
         </div>
       </div>
+      
+      {/* Settings dropdown rendered outside main layout for proper z-index */}
+      <SettingsDropdown />
     </>
   );
 };

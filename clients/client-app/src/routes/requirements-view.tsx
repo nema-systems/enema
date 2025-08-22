@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth, OrganizationSwitcher } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -19,17 +19,8 @@ import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selector
 import { setSelectedWorkspaceId } from "../store/workspaces/workspaces.slice";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
 
-interface Requirement {
-  id: number;
-  public_id?: string;
-  name: string;
-  description?: string;
-  status: string;
-  priority: string;
-  req_type: string;
-  created_at: string;
-}
 
 interface Workspace {
   id: string;
@@ -181,6 +172,20 @@ const RequirementsView = () => {
     }
   };
 
+  const getBgColorFromId = (id: number) => {
+    const colors = [
+      'bg-blue-500',
+      'bg-green-500', 
+      'bg-yellow-500',
+      'bg-purple-500',
+      'bg-pink-500',
+      'bg-indigo-500',
+      'bg-red-500',
+      'bg-cyan-500'
+    ];
+    return colors[id % colors.length];
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved': return 'bg-green-100 text-green-800 border-green-200';
@@ -197,15 +202,15 @@ const RequirementsView = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Requirements</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Requirements</h1>
             {(workspace || workspaceDetails)?.description && (
-              <p className="text-gray-600 mt-1">{(workspace || workspaceDetails)!.description}</p>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">{(workspace || workspaceDetails)!.description}</p>
             )}
           </div>
           <div>
             <button
               onClick={createRequirement}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Create Requirement
             </button>
@@ -214,10 +219,10 @@ const RequirementsView = () => {
       </div>
 
       {/* Content */}
-      <div className="bg-white shadow-sm rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-900">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">
               Requirements ({filteredAndSortedRequirements.length} of {requirements.length})
             </h2>
           </div>
@@ -225,14 +230,14 @@ const RequirementsView = () => {
           {/* Filters and Sorting */}
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center space-x-2">
-              <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
+              <label htmlFor="status-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Status:
               </label>
               <select
                 id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="all">All</option>
                 <option value="draft">Draft</option>
@@ -243,14 +248,14 @@ const RequirementsView = () => {
             </div>
               
             <div className="flex items-center space-x-2">
-              <label htmlFor="priority-filter" className="text-sm font-medium text-gray-700">
+              <label htmlFor="priority-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Priority:
               </label>
               <select
                 id="priority-filter"
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="all">All</option>
                 <option value="critical">Critical</option>
@@ -261,14 +266,14 @@ const RequirementsView = () => {
             </div>
               
             <div className="flex items-center space-x-2">
-              <label htmlFor="sort-by" className="text-sm font-medium text-gray-700">
+              <label htmlFor="sort-by" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Sort by:
               </label>
               <select
                 id="sort-by"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="created_at">Date Created</option>
                 <option value="name">Name</option>
@@ -306,13 +311,17 @@ const RequirementsView = () => {
               </div>
             ) : filteredAndSortedRequirements.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-gray-500 mb-4">
-                  {requirements.length === 0 ? "No requirements found" : "No requirements match your filters"}
+                <div className="w-24 h-24 mx-auto mb-4 text-gray-300 dark:text-gray-600">
+                  <DocumentTextIcon />
                 </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No requirements found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  {requirements.length === 0 ? "Get started by creating your first requirement." : "Try adjusting your filters to see more results."}
+                </p>
                 {requirements.length === 0 ? (
                   <button
                     onClick={createRequirement}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
                     Create Your First Requirement
                   </button>
@@ -329,34 +338,35 @@ const RequirementsView = () => {
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredAndSortedRequirements.map((requirement) => (
                   <div
                     key={requirement.id}
-                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
                     onClick={() => navigate(`/workspace/${workspaceId}/requirements/${requirement.id}`)}
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    <div className="flex">
+                      <div className={`w-1 ${getBgColorFromId(requirement.id)} flex-shrink-0`} />
+                      <div className="p-4 flex-1">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                           {requirement.public_id || requirement.name}
                         </h3>
                         {requirement.description && (
-                          <p className="text-gray-600 mb-3">{requirement.description}</p>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
+                            {requirement.description}
+                          </p>
                         )}
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <span>ID: {requirement.id}</span>
-                          <span>Type: {requirement.req_type}</span>
-                          <span>Created: {new Date(requirement.created_at).toLocaleDateString()}</span>
+                        <div className="flex flex-col space-y-2 mb-3">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border self-start ${getStatusColor(requirement.status)}`}>
+                            {requirement.status}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border self-start ${getPriorityColor(requirement.priority)}`}>
+                            {requirement.priority}
+                          </span>
                         </div>
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(requirement.status)}`}>
-                          {requirement.status}
-                        </span>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(requirement.priority)}`}>
-                          {requirement.priority}
-                        </span>
+                        <p className="text-gray-400 dark:text-gray-500 text-xs">
+                          Created: {new Date(requirement.created_at).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                   </div>
