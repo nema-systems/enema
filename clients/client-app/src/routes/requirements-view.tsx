@@ -98,14 +98,14 @@ const RequirementsView = () => {
     try {
       const token = await getToken({ template: "default" });
       
-      // First create a req_tree for this workspace
-      let reqTreeId: number;
+      // First create a req_collection for this workspace
+      let reqCollectionId: number;
       try {
-        const reqTreeResponse = await axios.post(
-          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_trees`,
+        const reqCollectionResponse = await axios.post(
+          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
           {
-            name: "Default Requirements Tree",
-            description: "Default requirements tree for workspace"
+            name: "Default Requirements Collection",
+            description: "Default requirements collection for workspace"
           },
           {
             headers: {
@@ -114,17 +114,17 @@ const RequirementsView = () => {
             },
           }
         );
-        reqTreeId = reqTreeResponse.data.data.id;
-      } catch (reqTreeErr: any) {
-        console.error("Failed to create req_tree:", reqTreeErr);
-        alert("Failed to create requirements tree. Please contact support.");
+        reqCollectionId = reqCollectionResponse.data.data.id;
+      } catch (reqCollectionErr: any) {
+        console.error("Failed to create req_collection:", reqCollectionErr);
+        alert("Failed to create requirements collection. Please contact support.");
         return;
       }
       
       const response = await axios.post(
         `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
         {
-          req_tree_id: reqTreeId,
+          req_collection_id: reqCollectionId,
           name,
           definition,
           level: level.toUpperCase(),

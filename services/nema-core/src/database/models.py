@@ -23,7 +23,7 @@ class Workspace(Base):
     
     # Relationships
     products = relationship("Product", back_populates="workspace")
-    req_trees = relationship("ReqTree", back_populates="workspace")
+    req_collections = relationship("ReqCollection", back_populates="workspace")
     modules = relationship("Module", back_populates="workspace")
     test_cases = relationship("TestCase", back_populates="workspace")
     tags = relationship("Tag", back_populates="workspace")
@@ -94,9 +94,9 @@ class Product(Base):
     product_modules = relationship("ProductModule", back_populates="product")
 
 
-class ReqTree(Base):
-    """Requirement Tree model"""
-    __tablename__ = "reqtree"
+class ReqCollection(Base):
+    """Requirement Collection model"""
+    __tablename__ = "req_collection"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False)
@@ -105,9 +105,9 @@ class ReqTree(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    workspace = relationship("Workspace", back_populates="req_trees")
-    modules = relationship("Module", back_populates="req_tree")
-    reqs = relationship("Req", back_populates="req_tree")
+    workspace = relationship("Workspace", back_populates="req_collections")
+    modules = relationship("Module", back_populates="req_collection")
+    reqs = relationship("Req", back_populates="req_collection")
 
 
 class Module(Base):
@@ -116,7 +116,7 @@ class Module(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False)
-    req_tree_id = Column(Integer, ForeignKey("reqtree.id", ondelete="CASCADE"), nullable=False)
+    req_collection_id = Column(Integer, ForeignKey("req_collection.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     rules = Column(Text)
@@ -126,7 +126,7 @@ class Module(Base):
     
     # Relationships
     workspace = relationship("Workspace", back_populates="modules")
-    req_tree = relationship("ReqTree", back_populates="modules")
+    req_collection = relationship("ReqCollection", back_populates="modules")
     product_modules = relationship("ProductModule", back_populates="module")
     module_requirements = relationship("ModuleRequirement", back_populates="module")
     module_parameters = relationship("ModuleParameter", back_populates="module")
@@ -141,7 +141,7 @@ class Req(Base):
     base_req_id = Column(Integer, ForeignKey("req.id"))
     parent_req_id = Column(Integer, ForeignKey("req.id"))
     prev_version = Column(Integer, ForeignKey("req.id"))
-    req_tree_id = Column(Integer, ForeignKey("reqtree.id", ondelete="CASCADE"), nullable=False)
+    req_collection_id = Column(Integer, ForeignKey("req_collection.id", ondelete="CASCADE"), nullable=False)
     author_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     owner_id = Column(Integer, ForeignKey("user.id"))
     public_id = Column(String(50), nullable=False)
@@ -159,7 +159,7 @@ class Req(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    req_tree = relationship("ReqTree", back_populates="reqs")
+    req_collection = relationship("ReqCollection", back_populates="reqs")
     author = relationship("User", foreign_keys=[author_id], back_populates="authored_reqs")
     owner = relationship("User", foreign_keys=[owner_id], back_populates="owned_reqs")
     parent_req = relationship("Req", remote_side=[id], foreign_keys=[parent_req_id])

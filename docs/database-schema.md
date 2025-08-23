@@ -40,7 +40,7 @@ erDiagram
         datetime updated_at
     }
 
-    REQTREE {
+    REQ_COLLECTION {
         int id PK
         int workspace_id FK
         string name
@@ -51,7 +51,7 @@ erDiagram
     MODULE {
         int id PK
         int workspace_id FK
-        int req_tree_id FK
+        int req_collection_id FK
         string name
         text description
         text rules
@@ -66,7 +66,7 @@ erDiagram
         int base_req_id
         int parent_req_id FK
         int prev_version FK
-        int req_tree_id FK
+        int req_collection_id FK
         int author_id FK
         int owner_id FK
         string public_id
@@ -280,8 +280,8 @@ erDiagram
 
     %% Direct Relationships
     WORKSPACE ||--o{ PRODUCT : contains
-    MODULE }o--|| REQTREE : "views"
-    REQTREE ||--o{ REQ : "contains"
+    MODULE }o--|| REQ_COLLECTION : "views"
+    REQ_COLLECTION ||--o{ REQ : "contains"
 
     REQ ||--o{ REQ : "parent-child"
     REQ ||--o{ REQ : "prev-version"
@@ -307,7 +307,7 @@ erDiagram
     WORKSPACE ||--o{ TAG : "contains"
     WORKSPACE ||--o{ GROUP : "contains"
     WORKSPACE ||--o{ ASSET : "contains"
-    WORKSPACE ||--o{ REQTREE : "contains"
+    WORKSPACE ||--o{ REQ_COLLECTION : "contains"
     WORKSPACE ||--o{ MODULE : "contains"
 
     %% Many-to-Many through junction tables
@@ -357,7 +357,7 @@ erDiagram
     MODULE ||--o{ RELEASE : "has releases"
 
     %% Composite Unique Constraints (Database Implementation)
-    %% REQ: UNIQUE(req_tree_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
+    %% REQ: UNIQUE(req_collection_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% RELEASE: UNIQUE(module_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% ASSET: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness

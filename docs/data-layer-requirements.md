@@ -4,19 +4,19 @@
 
 ### Workspace and Products
 - **Workspace**: Container for multiple products with metadata (JSONB field reserved for future use)
-- **Product**: Contains references to modules (does not own ReqTrees directly), with metadata (JSONB field reserved for future use)
+- **Product**: Contains references to modules (does not own ReqCollections directly), with metadata (JSONB field reserved for future use)
 - **Module Sharing**: Modules can be shared across multiple products
 - **Relationship**: Multiple products can exist within each workspace
 
 ### Requirements Structure
-- **Req (Requirement)**: Core requirement entity that belongs to exactly one ReqTree, contains all version information in a single table
+- **Req (Requirement)**: Core requirement entity that belongs to exactly one ReqCollection, contains all version information in a single table
 - **Requirement Versioning**: Multiple rows in the REQ table represent different versions of the same logical requirement
 - **Base Req ID**: Shared integer identifier across all versions of the same logical requirement (base_req_id field)
-- **Requirement Hierarchy**: Requirements form a tree structure with parent-child relationships within a ReqTree
+- **Requirement Hierarchy**: Requirements form a tree structure with parent-child relationships within a ReqCollection
 - **Requirement Attributes**: Requirements have base_req_id, level, priority, functional type, validation method, status, rationale, notes, name, definition, version information, and metadata (JSONB field reserved for future use)
 - **Requirement Ownership**: Requirements have both author (creator) and owner (current responsible user) relationships to User table
 - **Requirement Grouping**: Requirements can be associated with groups for organization and classification
-- **ReqTree Membership**: Each requirement belongs to exactly one ReqTree (no sharing across trees)
+- **ReqCollection Membership**: Each requirement belongs to exactly one ReqCollection (no sharing across collections)
 - **Comments**: Associated with requirements, contain text, ID, timestamp, author (User), and metadata (JSONB field reserved for future use)
 - **Version Management**: Each requirement version has an associated user (revision author) and version number
 - **Version Linking**: Requirements link to their previous version through prev_version field, maintaining history within the same base_req_id
@@ -34,11 +34,11 @@
 - **Abstract Requirements**: A requirement is abstract if any of its associated parameters have multiple versions with the same group_id (computed, not stored)
 
 ### Trees and Views
-- **ReqTree**: A workspace-scoped requirement tree structure containing requirements directly, with metadata (JSONB field reserved for future use)
-- **Module**: A workspace-scoped curated view of a ReqTree with explicitly selected requirements and parameters via junction tables, includes description, rules, sharing controls, and metadata (JSONB field reserved for future use)
+- **ReqCollection**: A workspace-scoped requirement collection structure containing requirements directly, with metadata (JSONB field reserved for future use)
+- **Module**: A workspace-scoped curated view of a ReqCollection with explicitly selected requirements and parameters via junction tables, includes description, rules, sharing controls, and metadata (JSONB field reserved for future use)
 - **Module Sharing**: Modules have a shared flag - if false, only available to owning product
 - **Module Rules**: Modules have a rules field for filtering and business logic
-- **Abstract Trees**: A ReqTree is abstract if it contains any abstract requirements (computed, not stored)
+- **Abstract Collections**: A ReqCollection is abstract if it contains any abstract requirements (computed, not stored)
 
 ### Views and Selection
 - **Tags**: Workspace-scoped entities associated with requirements, parameters, and test cases for organizational filtering
@@ -56,13 +56,13 @@
 - **Parameter Associations**: Parameters are linked to requirement versions through junction table (many-to-many with REQ table rows)
 - **Parameter Sharing**: Same parameters can be associated with multiple requirement versions
 - **Parameter Independence**: Parameters maintain their own versioning lifecycle separate from requirements
-- **Non-versioned Entities**: ReqTree and Module are not versioned
+- **Non-versioned Entities**: ReqCollection and Module are not versioned
 - **Releases**: Workspace-scoped entities that belong to a specific module and can be associated with REQ table rows and PARAM table rows
 - **Release Module Association**: Each release belongs to exactly one module within the workspace
 - **Release Hierarchy**: Releases can link to previous releases through prev_release field, maintaining release history within the workspace
 - **Release Draft Mode**: Releases have a draft boolean flag - when true, associated requirements and parameters can be edited; when false, they become immutable
 - **Release Descriptions**: Releases have description fields for detailed release notes and metadata (JSONB field reserved for future use)
-- **Release Restrictions**: Abstract ReqTrees cannot be released
+- **Release Restrictions**: Abstract ReqCollections cannot be released
 
 ### Immutability and Constraints
 - **Module Immutability**: Modules cannot be modified once created (if needed for business rules)
@@ -72,8 +72,8 @@
 - **Parameter Independence**: Parameters exist independently of any specific requirement version
 - **Module Sharing**: Modules with shared=true can be referenced by multiple products
 - **Module Ownership**: Each product has dedicated non-shared modules for product-specific views
-- **ReqTree Membership**: Each requirement belongs to exactly one ReqTree (1:N relationship)
-- **Product Independence**: Products access ReqTrees only through modules, not directly
+- **ReqCollection Membership**: Each requirement belongs to exactly one ReqCollection (1:N relationship)
+- **Product Independence**: Products access ReqCollections only through modules, not directly
 - **No Direct Abstract Storage**: Abstract status is never stored directly but always computed from parameter alternatives
 - **Test Run Uniqueness**: Each test run belongs to exactly one test case
 - **Asset Reusability**: Assets can be associated with multiple test runs
@@ -137,7 +137,7 @@
 - **Workspace-Scoped Counters**: Each workspace maintains independent monotonic counters for each entity type
 - **Unique Within Workspace**: Public IDs are unique within a workspace but can be duplicated across different workspaces
 - **Database Constraints**: Composite unique constraints ensure workspace-scoped uniqueness:
-  - REQ: UNIQUE(req_tree_id→workspace_id, public_id) 
+  - REQ: UNIQUE(req_collection_id→workspace_id, public_id) 
   - TESTCASE: UNIQUE(workspace_id, public_id)
   - RELEASE: UNIQUE(module_id→workspace_id, public_id)
   - ASSET: UNIQUE(workspace_id, public_id)

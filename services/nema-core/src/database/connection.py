@@ -149,7 +149,7 @@ async def _create_database_indexes(conn):
         # Requirement indexes
         "CREATE INDEX IF NOT EXISTS idx_req_public_id ON req(public_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_base_req_id ON req(base_req_id)",
-        "CREATE INDEX IF NOT EXISTS idx_req_tree_id ON req(req_tree_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_collection_id ON req(req_collection_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_author_id ON req(author_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_owner_id ON req(owner_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_status ON req(status)",
@@ -256,10 +256,10 @@ async def _create_public_id_functions(conn):
     DECLARE
         ws_id INTEGER;
     BEGIN
-        -- Get workspace_id from req_tree
+        -- Get workspace_id from req_collection
         SELECT rt.workspace_id INTO ws_id 
-        FROM reqtree rt 
-        WHERE rt.id = NEW.req_tree_id;
+        FROM req_collection rt 
+        WHERE rt.id = NEW.req_collection_id;
         
         -- Set public_id if not already set
         IF NEW.public_id IS NULL OR NEW.public_id = '' THEN

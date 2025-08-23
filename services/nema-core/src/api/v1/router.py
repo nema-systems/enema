@@ -6,7 +6,7 @@ from .workspaces import router as workspaces_router
 from .requirements import router as requirements_router
 from .products import router as products_router
 from .modules import router as modules_router
-from .reqtrees import router as reqtrees_router
+from .req_collections import router as req_collections_router
 from .parameters import router as parameters_router
 from .testcases import router as testcases_router
 from .releases import router as releases_router
@@ -45,9 +45,9 @@ router.include_router(
 )
 
 router.include_router(
-    reqtrees_router,
-    prefix="/workspaces/{workspace_id}/reqtrees",
-    tags=["Requirement Trees"]
+    req_collections_router,
+    prefix="/workspaces/{workspace_id}/req_collections",
+    tags=["Requirement Collections"]
 )
 
 router.include_router(

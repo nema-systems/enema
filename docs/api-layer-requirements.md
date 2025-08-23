@@ -57,11 +57,11 @@ DELETE /api/v1/workspaces/{wsId}/modules/{id}
 
 ### Requirement Trees
 ```
-GET    /api/v1/workspaces/{wsId}/reqtrees
-POST   /api/v1/workspaces/{wsId}/reqtrees
-GET    /api/v1/workspaces/{wsId}/reqtrees/{id}
-PUT    /api/v1/workspaces/{wsId}/reqtrees/{id}
-DELETE /api/v1/workspaces/{wsId}/reqtrees/{id}
+GET    /api/v1/workspaces/{wsId}/req_collections
+POST   /api/v1/workspaces/{wsId}/req_collections
+GET    /api/v1/workspaces/{wsId}/req_collections/{id}
+PUT    /api/v1/workspaces/{wsId}/req_collections/{id}
+DELETE /api/v1/workspaces/{wsId}/req_collections/{id}
 ```
 
 ### Requirements Management
@@ -149,7 +149,7 @@ DELETE /api/v1/workspaces/{wsId}/groups/{id}
 # Relationships
 ?module_id=123        # Resources in module
 ?product_id=456          # Modules in product
-?reqtree_id=789          # Requirements in tree
+?req_collection_id=789  # Requirements in collection
 ?author_id=999           # Created by user
 ?owner_id=888            # Owned by user
 

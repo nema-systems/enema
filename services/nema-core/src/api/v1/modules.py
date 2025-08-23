@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import structlog
 
 from ...database.connection import get_db
-from ...database.models import Module, ReqTree, Product
+from ...database.models import Module, ReqCollection, Product
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
@@ -20,7 +20,7 @@ router = APIRouter()
 
 # Pydantic models
 class ModuleCreate(BaseModel):
-    req_tree_id: int
+    req_collection_id: int
     name: str
     description: Optional[str] = None
     rules: Optional[str] = None
@@ -39,7 +39,7 @@ class ModuleUpdate(BaseModel):
 class ModuleResponse(BaseModel):
     id: int
     workspace_id: int
-    req_tree_id: int
+    req_collection_id: int
     name: str
     description: Optional[str]
     rules: Optional[str]
@@ -159,7 +159,7 @@ async def list_modules(
         ModuleResponse(
             id=comp.id,
             workspace_id=comp.workspace_id,
-            req_tree_id=comp.req_tree_id,
+            req_collection_id=comp.req_collection_id,
             name=comp.name,
             description=comp.description,
             rules=comp.rules,
@@ -201,17 +201,17 @@ async def create_module(
 ):
     """Create new module"""
     
-    # Validate req_tree belongs to workspace
-    req_tree_query = select(ReqTree).where(
+    # Validate req_collection belongs to workspace
+    req_collection_query = select(ReqCollection).where(
         and_(
-            ReqTree.id == module_data.req_tree_id,
-            ReqTree.workspace_id == workspace_id
+            ReqCollection.id == module_data.req_collection_id,
+            ReqCollection.workspace_id == workspace_id
         )
     )
-    req_tree_result = await db.execute(req_tree_query)
-    req_tree = req_tree_result.scalar_one_or_none()
+    req_collection_result = await db.execute(req_collection_query)
+    req_collection = req_collection_result.scalar_one_or_none()
     
-    if not req_tree:
+    if not req_collection:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Requirement tree not found in this workspace"
@@ -220,7 +220,7 @@ async def create_module(
     # Create module
     new_module = Module(
         workspace_id=workspace_id,
-        req_tree_id=module_data.req_tree_id,
+        req_collection_id=module_data.req_collection_id,
         name=module_data.name,
         description=module_data.description,
         rules=module_data.rules,
@@ -240,7 +240,7 @@ async def create_module(
     module_response = ModuleResponse(
         id=new_module.id,
         workspace_id=new_module.workspace_id,
-        req_tree_id=new_module.req_tree_id,
+        req_collection_id=new_module.req_collection_id,
         name=new_module.name,
         description=new_module.description,
         rules=new_module.rules,
@@ -273,7 +273,7 @@ async def get_module(
     module_response = ModuleResponse(
         id=module.id,
         workspace_id=module.workspace_id,
-        req_tree_id=module.req_tree_id,
+        req_collection_id=module.req_collection_id,
         name=module.name,
         description=module.description,
         rules=module.rules,
@@ -326,7 +326,7 @@ async def update_module(
     module_response = ModuleResponse(
         id=module.id,
         workspace_id=module.workspace_id,
-        req_tree_id=module.req_tree_id,
+        req_collection_id=module.req_collection_id,
         name=module.name,
         description=module.description,
         rules=module.rules,
