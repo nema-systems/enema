@@ -4,22 +4,22 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
-  setProjects,
-  addProject,
+  setProducts,
+  addProduct,
   setLoading,
   setError,
-  clearProjects,
-} from "../store/projects/projects.slice";
+  clearProducts,
+} from "../store/products/products.slice";
 import {
-  selectProjects,
-  selectProjectsLoading,
-  selectProjectsError,
-} from "../store/projects/projects.selectors";
+  selectProducts,
+  selectProductsLoading,
+  selectProductsError,
+} from "../store/products/products.selectors";
 import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 
-interface Project {
+interface Product {
   id: number;
   name: string;
   description?: string;
@@ -32,15 +32,15 @@ interface Workspace {
   description?: string;
 }
 
-const ProjectsView = () => {
+const ProductsView = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
   
-  const projects = useAppSelector(selectProjects);
-  const loading = useAppSelector(selectProjectsLoading);
-  const error = useAppSelector(selectProjectsError);
+  const products = useAppSelector(selectProducts);
+  const loading = useAppSelector(selectProductsLoading);
+  const error = useAppSelector(selectProductsError);
   const workspace = useAppSelector(selectSelectedWorkspace);
   
   const [workspaceDetails, setWorkspaceDetails] = useState<Workspace | null>(null);
@@ -62,7 +62,7 @@ const ProjectsView = () => {
     }
   };
 
-  const fetchProjects = async () => {
+  const fetchProducts = async () => {
     if (!workspaceId) return;
     
     try {
@@ -70,35 +70,35 @@ const ProjectsView = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/projects`,
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       
-      dispatch(setProjects(response.data.data?.items || response.data.data || []));
+      dispatch(setProducts(response.data.data?.items || response.data.data || []));
       dispatch(setError(null));
     } catch (err: any) {
-      console.error("Error fetching projects:", err);
-      dispatch(setError(err.response?.data?.message || "Failed to fetch projects"));
+      console.error("Error fetching products:", err);
+      dispatch(setError(err.response?.data?.message || "Failed to fetch products"));
     } finally {
       dispatch(setLoading(false));
     }
   };
 
-  const createProject = async () => {
+  const createProduct = async () => {
     if (!workspaceId) return;
 
-    const name = prompt("Enter project name:");
+    const name = prompt("Enter product name:");
     if (!name) return;
 
-    const description = prompt("Enter project description (optional):") || "";
+    const description = prompt("Enter product description (optional):") || "";
 
     try {
       const token = await getToken({ template: "default" });
       
       const response = await axios.post(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/projects`,
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
         {
           name,
           description,
@@ -111,21 +111,21 @@ const ProjectsView = () => {
         }
       );
       
-      dispatch(addProject(response.data.data));
+      dispatch(addProduct(response.data.data));
     } catch (err: any) {
-      console.error("Error creating project:", err);
-      alert(err.response?.data?.message || "Failed to create project");
+      console.error("Error creating product:", err);
+      alert(err.response?.data?.message || "Failed to create product");
     }
   };
 
   useEffect(() => {
     if (workspaceId) {
       fetchWorkspace();
-      fetchProjects();
+      fetchProducts();
     }
     
     return () => {
-      dispatch(clearProjects());
+      dispatch(clearProducts());
     };
   }, [workspaceId, dispatch]);
 
@@ -149,17 +149,17 @@ const ProjectsView = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Products</h1>
             {(workspace || workspaceDetails)?.description && (
               <p className="text-gray-600 mt-1">{(workspace || workspaceDetails)!.description}</p>
             )}
           </div>
           <div>
             <button
-              onClick={createProject}
+              onClick={createProduct}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Create Project
+              Create Product
             </button>
           </div>
         </div>
@@ -169,7 +169,7 @@ const ProjectsView = () => {
       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-            Projects ({projects.length})
+            Products ({products.length})
           </h2>
         </div>
 
@@ -181,12 +181,12 @@ const ProjectsView = () => {
           ) : error ? (
             <div className="py-6">
               <ErrorMessage 
-                title="Failed to load projects"
+                title="Failed to load products"
                 message={error}
-                onRetry={fetchProjects}
+                onRetry={fetchProducts}
               />
             </div>
-          ) : projects.length === 0 ? (
+          ) : products.length === 0 ? (
             <div className="text-center py-12">
               <svg
                 fill="none"
@@ -202,46 +202,46 @@ const ProjectsView = () => {
                   strokeLinejoin="round"
                 />
               </svg>
-              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No projects</h3>
+              <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No products</h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Get started by creating your first project.
+                Get started by creating your first product.
               </p>
               <div className="mt-6">
                 <button
-                  onClick={createProject}
+                  onClick={createProduct}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <svg className="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
                   </svg>
-                  New Project
+                  New Product
                 </button>
               </div>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {projects.map((project) => (
+              {products.map((product) => (
                 <div
-                  key={project.id}
+                  key={product.id}
                   className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
                   onClick={() => {
-                    // TODO: Navigate to project details or requirements filtered by project
-                    console.log("Navigate to project:", project.id);
+                    // TODO: Navigate to product details or requirements filtered by product
+                    console.log("Navigate to product:", product.id);
                   }}
                 >
                   <div className="flex">
-                    <div className={`w-1 ${getBgColorFromId(project.id)} flex-shrink-0`} />
+                    <div className={`w-1 ${getBgColorFromId(product.id)} flex-shrink-0`} />
                     <div className="p-4 flex-1">
                       <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                        {project.name}
+                        {product.name}
                       </h3>
-                      {project.description && (
+                      {product.description && (
                         <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
-                          {project.description}
+                          {product.description}
                         </p>
                       )}
                       <p className="text-gray-400 dark:text-gray-500 text-xs">
-                        Created: {new Date(project.created_at).toLocaleDateString()}
+                        Created: {new Date(product.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -255,4 +255,4 @@ const ProjectsView = () => {
   );
 };
 
-export default ProjectsView;
+export default ProductsView;

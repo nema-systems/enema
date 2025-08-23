@@ -173,7 +173,7 @@ async def _create_database_indexes(conn):
         
         # Release indexes
         "CREATE INDEX IF NOT EXISTS idx_release_public_id ON release(public_id)",
-        "CREATE INDEX IF NOT EXISTS idx_release_component_id ON release(component_id)",
+        "CREATE INDEX IF NOT EXISTS idx_release_module_id ON release(module_id)",
         "CREATE INDEX IF NOT EXISTS idx_release_draft ON release(draft)",
         
         # Junction table indexes
@@ -181,8 +181,8 @@ async def _create_database_indexes(conn):
         "CREATE INDEX IF NOT EXISTS idx_org_workspace_org_ws ON organization_workspace(organization_id, workspace_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_param_req_param ON requirement_parameters(req_id, param_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_tag_req_tag ON requirement_tags(req_id, tag_id)",
-        "CREATE INDEX IF NOT EXISTS idx_comp_req_comp_req ON component_requirements(component_id, req_id)",
-        "CREATE INDEX IF NOT EXISTS idx_comp_param_comp_param ON component_parameters(component_id, param_id)",
+        "CREATE INDEX IF NOT EXISTS idx_mod_req_mod_req ON module_requirements(module_id, req_id)",
+        "CREATE INDEX IF NOT EXISTS idx_mod_param_mod_param ON module_parameters(module_id, param_id)"
     ]
     
     for index_sql in indexes:
@@ -344,10 +344,10 @@ async def _create_public_id_functions(conn):
     DECLARE
         ws_id INTEGER;
     BEGIN
-        -- Get workspace_id from component
-        SELECT c.workspace_id INTO ws_id 
-        FROM component c 
-        WHERE c.id = NEW.component_id;
+        -- Get workspace_id from module
+        SELECT m.workspace_id INTO ws_id 
+        FROM module m 
+        WHERE m.id = NEW.module_id;
         
         -- Set public_id if not already set
         IF NEW.public_id IS NULL OR NEW.public_id = '' THEN

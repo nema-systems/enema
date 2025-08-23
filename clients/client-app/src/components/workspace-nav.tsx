@@ -11,9 +11,9 @@ const WorkspaceNav = ({ workspaceName }: WorkspaceNavProps) => {
 
   const navItems = [
     {
-      name: "Projects",
-      path: `/workspace/${workspaceId}/projects`,
-      current: location.pathname.includes("/projects")
+      name: "Products",
+      path: `/workspace/${workspaceId}/products`,
+      current: location.pathname.includes("/products")
     },
     {
       name: "Requirements", 

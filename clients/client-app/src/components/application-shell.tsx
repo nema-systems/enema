@@ -181,7 +181,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
           dispatch(setSelectedWorkspaceId(workspaceList[0].id));
           // Auto-redirect to first workspace if on home page or if current workspace is invalid
           if (window.location.pathname === '/' || (selectedWorkspace && !workspaceList.find(w => w.id === selectedWorkspace.id))) {
-            navigate(`/workspace/${workspaceList[0].id}/projects`);
+            navigate(`/workspace/${workspaceList[0].id}/products`);
           }
         }
         
@@ -207,8 +207,8 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
   
   const navigation = navigationWorkspace ? [
     {
-      name: 'Projects',
-      href: `/workspace/${navigationWorkspace.id}/projects`,
+      name: 'Products',
+      href: `/workspace/${navigationWorkspace.id}/products`,
       icon: RectangleGroupIcon,
     },
     {
@@ -217,8 +217,8 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       icon: DocumentTextIcon,
     },
     {
-      name: 'Components',
-      href: `/workspace/${navigationWorkspace.id}/components`,
+      name: 'Modules',
+      href: `/workspace/${navigationWorkspace.id}/modules`,
       icon: CubeIcon,
     },
     {
@@ -391,7 +391,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
                             const workspace = workspaces.find(w => String(w.id) === String(e.target.value));
                             if (workspace) {
                               dispatch(setSelectedWorkspaceId(workspace.id));
-                              navigate(`/workspace/${workspace.id}/projects`);
+                              navigate(`/workspace/${workspace.id}/products`);
                               setSettingsOpen(false);
                             }
                           }}

@@ -9,7 +9,7 @@ erDiagram
         datetime created_at
     }
 
-    PROJECT {
+    PRODUCT {
         int id PK
         int workspace_id FK
         string name
@@ -48,7 +48,7 @@ erDiagram
         datetime created_at
     }
 
-    COMPONENT {
+    MODULE {
         int id PK
         int workspace_id FK
         int req_tree_id FK
@@ -109,7 +109,7 @@ erDiagram
 
     RELEASE {
         int id PK
-        int component_id FK
+        int module_id FK
         int prev_release FK
         string name
         string public_id
@@ -194,10 +194,10 @@ erDiagram
         datetime updated_at
     }
 
-    PROJECT_COMPONENTS {
+    PRODUCT_MODULES {
         int workspace_id FK
-        int project_id FK
-        int component_id FK
+        int product_id FK
+        int module_id FK
     }
 
     REQUIREMENT_PARAMETERS {
@@ -218,15 +218,15 @@ erDiagram
         int tag_id FK
     }
 
-    COMPONENT_PARAMETERS {
+    MODULE_PARAMETERS {
         int workspace_id FK
-        int component_id FK
+        int module_id FK
         int param_id FK
     }
 
-    COMPONENT_REQUIREMENTS {
+    MODULE_REQUIREMENTS {
         int workspace_id FK
-        int component_id FK
+        int module_id FK
         int req_id FK
     }
 
@@ -279,8 +279,8 @@ erDiagram
     }
 
     %% Direct Relationships
-    WORKSPACE ||--o{ PROJECT : contains
-    COMPONENT }o--|| REQTREE : "views"
+    WORKSPACE ||--o{ PRODUCT : contains
+    MODULE }o--|| REQTREE : "views"
     REQTREE ||--o{ REQ : "contains"
 
     REQ ||--o{ REQ : "parent-child"
@@ -308,11 +308,11 @@ erDiagram
     WORKSPACE ||--o{ GROUP : "contains"
     WORKSPACE ||--o{ ASSET : "contains"
     WORKSPACE ||--o{ REQTREE : "contains"
-    WORKSPACE ||--o{ COMPONENT : "contains"
+    WORKSPACE ||--o{ MODULE : "contains"
 
     %% Many-to-Many through junction tables
-    PROJECT ||--o{ PROJECT_COMPONENTS : ""
-    PROJECT_COMPONENTS }o--|| COMPONENT : ""
+    PRODUCT ||--o{ PRODUCT_MODULES : ""
+    PRODUCT_MODULES }o--|| MODULE : ""
 
     REQ ||--o{ REQUIREMENT_PARAMETERS : ""
     REQUIREMENT_PARAMETERS }o--|| PARAM : ""
@@ -323,11 +323,11 @@ erDiagram
     PARAM ||--o{ PARAMETER_TAGS : ""
     PARAMETER_TAGS }o--|| TAG : ""
 
-    COMPONENT ||--o{ COMPONENT_PARAMETERS : ""
-    COMPONENT_PARAMETERS }o--|| PARAM : ""
+    MODULE ||--o{ MODULE_PARAMETERS : ""
+    MODULE_PARAMETERS }o--|| PARAM : ""
 
-    COMPONENT ||--o{ COMPONENT_REQUIREMENTS : ""
-    COMPONENT_REQUIREMENTS }o--|| REQ : ""
+    MODULE ||--o{ MODULE_REQUIREMENTS : ""
+    MODULE_REQUIREMENTS }o--|| REQ : ""
 
     TESTCASE ||--o{ TESTCASE_REQUIREMENTS : ""
     TESTCASE_REQUIREMENTS }o--|| REQ : ""
@@ -354,11 +354,11 @@ erDiagram
     PARAMETER_RELEASES }o--|| RELEASE : ""
 
     RELEASE ||--o{ RELEASE : "prev-release"
-    COMPONENT ||--o{ RELEASE : "has releases"
+    MODULE ||--o{ RELEASE : "has releases"
 
     %% Composite Unique Constraints (Database Implementation)
     %% REQ: UNIQUE(req_tree_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
-    %% RELEASE: UNIQUE(component_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
+    %% RELEASE: UNIQUE(module_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% ASSET: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
 ```

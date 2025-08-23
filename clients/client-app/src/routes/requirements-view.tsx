@@ -91,20 +91,47 @@ const RequirementsView = () => {
     const name = prompt("Enter requirement name:");
     if (!name) return;
 
-    const description = prompt("Enter requirement description (optional):") || "";
-    const priority = prompt("Enter priority (LOW, MEDIUM, HIGH, CRITICAL):") || "MEDIUM";
+    const definition = prompt("Enter requirement definition:") || "";
+    const priority = prompt("Enter priority (HIGH, MEDIUM, LOW, CRITICAL):") || "MEDIUM";
+    const level = prompt("Enter level (SYSTEM, SUBSYSTEM, COMPONENT):") || "SYSTEM";
 
     try {
       const token = await getToken({ template: "default" });
       
+      // First create a req_tree for this workspace
+      let reqTreeId: number;
+      try {
+        const reqTreeResponse = await axios.post(
+          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_trees`,
+          {
+            name: "Default Requirements Tree",
+            description: "Default requirements tree for workspace"
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        reqTreeId = reqTreeResponse.data.data.id;
+      } catch (reqTreeErr: any) {
+        console.error("Failed to create req_tree:", reqTreeErr);
+        alert("Failed to create requirements tree. Please contact support.");
+        return;
+      }
+      
       const response = await axios.post(
         `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
         {
+          req_tree_id: reqTreeId,
           name,
-          description,
+          definition,
+          level: level.toUpperCase(),
           priority: priority.toUpperCase(),
+          functional: "FUNCTIONAL",
+          validation_method: "TEST",
           status: "DRAFT",
-          req_type: "FUNCTIONAL",
         },
         {
           headers: {

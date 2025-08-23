@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import structlog
 
 from ...database.connection import get_db
-from ...database.models import Req, ReqTree, User as DBUser, Component, Tag
+from ...database.models import Req, ReqTree, User as DBUser, Module, Tag
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
@@ -179,10 +179,10 @@ async def list_requirements(
     
     # Apply filters
     if component_id:
-        # Filter by component association
-        from ...database.models import ComponentRequirement
-        query = query.join(ComponentRequirement).where(
-            ComponentRequirement.component_id == component_id
+        # Filter by module association
+        from ...database.models import ModuleRequirement
+        query = query.join(ModuleRequirement).where(
+            ModuleRequirement.module_id == component_id
         )
     
     if status:

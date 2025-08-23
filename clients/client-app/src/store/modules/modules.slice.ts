@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export interface Component {
+export interface Module {
   id: number;
   workspace_id: number;
   name: string;
@@ -9,35 +9,35 @@ export interface Component {
   created_at: string;
 }
 
-interface ComponentsState {
-  items: Component[];
+interface ModulesState {
+  items: Module[];
   loading: boolean;
   error: string | null;
 }
 
-const initialState: ComponentsState = {
+const initialState: ModulesState = {
   items: [],
   loading: false,
   error: null,
 };
 
-const componentsSlice = createSlice({
-  name: 'components',
+const modulesSlice = createSlice({
+  name: 'modules',
   initialState,
   reducers: {
-    setComponents: (state, action: PayloadAction<Component[]>) => {
+    setModules: (state, action: PayloadAction<Module[]>) => {
       state.items = action.payload;
     },
-    addComponent: (state, action: PayloadAction<Component>) => {
+    addModule: (state, action: PayloadAction<Module>) => {
       state.items.push(action.payload);
     },
-    updateComponent: (state, action: PayloadAction<Component>) => {
+    updateModule: (state, action: PayloadAction<Module>) => {
       const index = state.items.findIndex(c => c.id === action.payload.id);
       if (index !== -1) {
         state.items[index] = action.payload;
       }
     },
-    deleteComponent: (state, action: PayloadAction<number>) => {
+    deleteModule: (state, action: PayloadAction<number>) => {
       state.items = state.items.filter(c => c.id !== action.payload);
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -50,12 +50,12 @@ const componentsSlice = createSlice({
 });
 
 export const {
-  setComponents,
-  addComponent,
-  updateComponent,
-  deleteComponent,
+  setModules,
+  addModule,
+  updateModule,
+  deleteModule,
   setLoading,
   setError,
-} = componentsSlice.actions;
+} = modulesSlice.actions;
 
-export default componentsSlice.reducer;
+export default modulesSlice.reducer;

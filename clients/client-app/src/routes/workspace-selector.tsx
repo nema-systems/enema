@@ -146,11 +146,11 @@ const WorkspaceSelector = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/workspace/${workspace.id}/projects`);
+                          navigate(`/workspace/${workspace.id}/products`);
                         }}
                         className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-3 rounded text-sm transition-colors"
                       >
-                        Projects
+                        Products
                       </button>
                       <button
                         onClick={(e) => {

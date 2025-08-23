@@ -2,11 +2,11 @@
 
 ## Core Entities and Business Rules
 
-### Workspace and Projects
-- **Workspace**: Container for multiple projects with metadata (JSONB field reserved for future use)
-- **Project**: Contains references to components (does not own ReqTrees directly), with metadata (JSONB field reserved for future use)
-- **Component Sharing**: Components can be shared across multiple projects
-- **Relationship**: Multiple projects can exist within each workspace
+### Workspace and Products
+- **Workspace**: Container for multiple products with metadata (JSONB field reserved for future use)
+- **Product**: Contains references to modules (does not own ReqTrees directly), with metadata (JSONB field reserved for future use)
+- **Module Sharing**: Modules can be shared across multiple products
+- **Relationship**: Multiple products can exist within each workspace
 
 ### Requirements Structure
 - **Req (Requirement)**: Core requirement entity that belongs to exactly one ReqTree, contains all version information in a single table
@@ -35,18 +35,18 @@
 
 ### Trees and Views
 - **ReqTree**: A workspace-scoped requirement tree structure containing requirements directly, with metadata (JSONB field reserved for future use)
-- **Component**: A workspace-scoped curated view of a ReqTree with explicitly selected requirements and parameters via junction tables, includes description, rules, sharing controls, and metadata (JSONB field reserved for future use)
-- **Component Sharing**: Components have a shared flag - if false, only available to owning project
-- **Component Rules**: Components have a rules field for filtering and business logic
+- **Module**: A workspace-scoped curated view of a ReqTree with explicitly selected requirements and parameters via junction tables, includes description, rules, sharing controls, and metadata (JSONB field reserved for future use)
+- **Module Sharing**: Modules have a shared flag - if false, only available to owning product
+- **Module Rules**: Modules have a rules field for filtering and business logic
 - **Abstract Trees**: A ReqTree is abstract if it contains any abstract requirements (computed, not stored)
 
 ### Views and Selection
 - **Tags**: Workspace-scoped entities associated with requirements, parameters, and test cases for organizational filtering
-- **Component Selection**: Uses junction tables to explicitly select which requirements and parameters are included in the component view
-- **Component Rules**: String field containing business logic and validation rules for the view
-- **Component Requirement Selection**: Component explicitly associates with specific requirements via COMPONENTREQ junction table
-- **Component Parameter Selection**: Component explicitly associates with specific parameters via COMPONENTPARAM junction table
-- **Alternative Selection**: Component must select exactly one parameter from each group_id for concrete views
+- **Module Selection**: Uses junction tables to explicitly select which requirements and parameters are included in the module view
+- **Module Rules**: String field containing business logic and validation rules for the view
+- **Module Requirement Selection**: Module explicitly associates with specific requirements via COMPONENTREQ junction table
+- **Module Parameter Selection**: Module explicitly associates with specific parameters via COMPONENTPARAM junction table
+- **Alternative Selection**: Module must select exactly one parameter from each group_id for concrete views
 
 ### Versioning and Releases
 - **Requirement Versioning**: Each REQ table row represents a version with associated user (revision author) and version number
@@ -56,24 +56,24 @@
 - **Parameter Associations**: Parameters are linked to requirement versions through junction table (many-to-many with REQ table rows)
 - **Parameter Sharing**: Same parameters can be associated with multiple requirement versions
 - **Parameter Independence**: Parameters maintain their own versioning lifecycle separate from requirements
-- **Non-versioned Entities**: ReqTree and Component are not versioned
-- **Releases**: Workspace-scoped entities that belong to a specific component and can be associated with REQ table rows and PARAM table rows
-- **Release Component Association**: Each release belongs to exactly one component within the workspace
+- **Non-versioned Entities**: ReqTree and Module are not versioned
+- **Releases**: Workspace-scoped entities that belong to a specific module and can be associated with REQ table rows and PARAM table rows
+- **Release Module Association**: Each release belongs to exactly one module within the workspace
 - **Release Hierarchy**: Releases can link to previous releases through prev_release field, maintaining release history within the workspace
 - **Release Draft Mode**: Releases have a draft boolean flag - when true, associated requirements and parameters can be edited; when false, they become immutable
 - **Release Descriptions**: Releases have description fields for detailed release notes and metadata (JSONB field reserved for future use)
 - **Release Restrictions**: Abstract ReqTrees cannot be released
 
 ### Immutability and Constraints
-- **Component Immutability**: Components cannot be modified once created (if needed for business rules)
-- **Non-abstract Constraint**: Components must not be abstract (computed constraint)
-- **Parameter Selection**: Component must select exactly one parameter from each group_id
+- **Module Immutability**: Modules cannot be modified once created (if needed for business rules)
+- **Non-abstract Constraint**: Modules must not be abstract (computed constraint)
+- **Parameter Selection**: Module must select exactly one parameter from each group_id
 - **Parameter Sharing Constraint**: Parameters can be shared across multiple requirement versions via junction table
 - **Parameter Independence**: Parameters exist independently of any specific requirement version
-- **Component Sharing**: Components with shared=true can be referenced by multiple projects
-- **Component Ownership**: Each project has dedicated non-shared components for project-specific views
+- **Module Sharing**: Modules with shared=true can be referenced by multiple products
+- **Module Ownership**: Each product has dedicated non-shared modules for product-specific views
 - **ReqTree Membership**: Each requirement belongs to exactly one ReqTree (1:N relationship)
-- **Project Independence**: Projects access ReqTrees only through components, not directly
+- **Product Independence**: Products access ReqTrees only through modules, not directly
 - **No Direct Abstract Storage**: Abstract status is never stored directly but always computed from parameter alternatives
 - **Test Run Uniqueness**: Each test run belongs to exactly one test case
 - **Asset Reusability**: Assets can be associated with multiple test runs
@@ -91,7 +91,7 @@
 - **Comment Authorship**: Each comment has an associated User and timestamp
 - **Test Execution**: Test runs have optional executor (User) for tracking who performed the test
 - **Asset Creation**: Assets have optional creator (User) for ownership tracking
-- **Clerk Integration**: Frontend uses Clerk React components, backend verifies Clerk JWT tokens
+- **Clerk Integration**: Frontend uses Clerk React modules, backend verifies Clerk JWT tokens
 - **Soft Delete**: Users marked as deleted instead of hard deleted for data integrity
 
 ### Organization Management
@@ -139,11 +139,11 @@
 - **Database Constraints**: Composite unique constraints ensure workspace-scoped uniqueness:
   - REQ: UNIQUE(req_tree_id→workspace_id, public_id) 
   - TESTCASE: UNIQUE(workspace_id, public_id)
-  - RELEASE: UNIQUE(component_id→workspace_id, public_id)
+  - RELEASE: UNIQUE(module_id→workspace_id, public_id)
   - ASSET: UNIQUE(workspace_id, public_id)
 - **Monotonic Sequence**: Counters never reuse numbers, even after entity deletion (REQ-1 deleted → next is REQ-2, not REQ-1)
 - **Database Sequences**: Implemented using PostgreSQL sequences with workspace-specific naming (e.g., ws_1_req_seq, ws_2_req_seq)
 - **Auto-Generation**: Public IDs are automatically generated on entity creation using database triggers
 - **Thread-Safe**: Sequence-based approach ensures concurrent insert safety
 - **Public ID Format**: Prefix (REQ/TEST/REL/ASSET) + hyphen + monotonic number within workspace scope
-- **Cross-Project Uniqueness**: Within a workspace, REQ-1, TEST-1, REL-1, ASSET-1 can only exist once across all projects in that workspace
+- **Cross-Product Uniqueness**: Within a workspace, REQ-1, TEST-1, REL-1, ASSET-1 can only exist once across all products in that workspace

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import structlog
 
 from ...database.connection import get_db
-from ...database.models import Param, User as DBUser, Component, Tag
+from ...database.models import Param, User as DBUser, Module, Tag
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
@@ -123,7 +123,7 @@ async def list_parameters(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     # Filtering
-    component_id: Optional[int] = Query(None),
+    module_id: Optional[int] = Query(None),
     type: Optional[str] = Query(None),
     group_id: Optional[str] = Query(None),
     author_id: Optional[int] = Query(None),
@@ -141,17 +141,17 @@ async def list_parameters(
     query = select(Param)
     
     # Filter by component association if specified
-    if component_id:
-        from ...database.models import ComponentParameter
-        query = query.join(ComponentParameter).join(Component).where(
-            Component.workspace_id == workspace_id,
-            ComponentParameter.component_id == component_id
+    if module_id:
+        from ...database.models import ModuleParameter
+        query = query.join(ModuleParameter).join(Module).where(
+            Module.workspace_id == workspace_id,
+            ModuleParameter.module_id == module_id
         )
     else:
-        # Show all parameters accessible through workspace components
-        from ...database.models import ComponentParameter
-        query = query.join(ComponentParameter).join(Component).where(
-            Component.workspace_id == workspace_id
+        # Show all parameters accessible through workspace modules
+        from ...database.models import ModuleParameter
+        query = query.join(ModuleParameter).join(Module).where(
+            Module.workspace_id == workspace_id
         )
     
     # Apply additional filters

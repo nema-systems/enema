@@ -22,9 +22,9 @@ class Workspace(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    projects = relationship("Project", back_populates="workspace")
+    products = relationship("Product", back_populates="workspace")
     req_trees = relationship("ReqTree", back_populates="workspace")
-    components = relationship("Component", back_populates="workspace")
+    modules = relationship("Module", back_populates="workspace")
     test_cases = relationship("TestCase", back_populates="workspace")
     tags = relationship("Tag", back_populates="workspace")
     groups = relationship("Group", back_populates="workspace")
@@ -78,9 +78,9 @@ class Organization(Base):
     workspaces = relationship("OrganizationWorkspace", back_populates="organization")
 
 
-class Project(Base):
-    """Project model"""
-    __tablename__ = "project"
+class Product(Base):
+    """Product model"""
+    __tablename__ = "product"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False)
@@ -90,8 +90,8 @@ class Project(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    workspace = relationship("Workspace", back_populates="projects")
-    project_components = relationship("ProjectComponent", back_populates="project")
+    workspace = relationship("Workspace", back_populates="products")
+    product_modules = relationship("ProductModule", back_populates="product")
 
 
 class ReqTree(Base):
@@ -106,13 +106,13 @@ class ReqTree(Base):
     
     # Relationships
     workspace = relationship("Workspace", back_populates="req_trees")
-    components = relationship("Component", back_populates="req_tree")
+    modules = relationship("Module", back_populates="req_tree")
     reqs = relationship("Req", back_populates="req_tree")
 
 
-class Component(Base):
-    """Component model"""
-    __tablename__ = "component"
+class Module(Base):
+    """Module model"""
+    __tablename__ = "module"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False)
@@ -125,12 +125,12 @@ class Component(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    workspace = relationship("Workspace", back_populates="components")
-    req_tree = relationship("ReqTree", back_populates="components")
-    project_components = relationship("ProjectComponent", back_populates="component")
-    component_requirements = relationship("ComponentRequirement", back_populates="component")
-    component_parameters = relationship("ComponentParameter", back_populates="component")
-    releases = relationship("Release", back_populates="component")
+    workspace = relationship("Workspace", back_populates="modules")
+    req_tree = relationship("ReqTree", back_populates="modules")
+    product_modules = relationship("ProductModule", back_populates="module")
+    module_requirements = relationship("ModuleRequirement", back_populates="module")
+    module_parameters = relationship("ModuleParameter", back_populates="module")
+    releases = relationship("Release", back_populates="module")
 
 
 class Req(Base):
@@ -172,7 +172,7 @@ class Req(Base):
     requirement_tags = relationship("RequirementTag", back_populates="req")
     requirement_groups = relationship("RequirementGroup", back_populates="req")
     requirement_releases = relationship("RequirementRelease", back_populates="req")
-    component_requirements = relationship("ComponentRequirement", back_populates="req")
+    module_requirements = relationship("ModuleRequirement", back_populates="req")
     testcase_requirements = relationship("TestcaseRequirement", back_populates="req")
 
 
@@ -202,7 +202,7 @@ class Param(Base):
     requirement_parameters = relationship("RequirementParameter", back_populates="param")
     parameter_tags = relationship("ParameterTag", back_populates="param")
     parameter_releases = relationship("ParameterRelease", back_populates="param")
-    component_parameters = relationship("ComponentParameter", back_populates="param")
+    module_parameters = relationship("ModuleParameter", back_populates="param")
     testcase_parameters = relationship("TestcaseParameter", back_populates="param")
 
 
@@ -308,7 +308,7 @@ class Release(Base):
     __tablename__ = "release"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    component_id = Column(Integer, ForeignKey("component.id", ondelete="CASCADE"), nullable=False)
+    module_id = Column(Integer, ForeignKey("module.id", ondelete="CASCADE"), nullable=False)
     prev_release = Column(Integer, ForeignKey("release.id"))
     name = Column(String(255), nullable=False)
     public_id = Column(String(50), nullable=False)
@@ -320,7 +320,7 @@ class Release(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    component = relationship("Component", back_populates="releases")
+    module = relationship("Module", back_populates="releases")
     previous_release = relationship("Release", remote_side=[id], foreign_keys=[prev_release])
     requirement_releases = relationship("RequirementRelease", back_populates="release")
     parameter_releases = relationship("ParameterRelease", back_populates="release")
@@ -378,17 +378,17 @@ class OrganizationWorkspace(Base):
     workspace = relationship("Workspace", back_populates="organization_workspaces")
 
 
-class ProjectComponent(Base):
-    """Project components junction table"""
-    __tablename__ = "project_components"
+class ProductModule(Base):
+    """Product modules junction table"""
+    __tablename__ = "product_modules"
     
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False, primary_key=True)
-    project_id = Column(Integer, ForeignKey("project.id", ondelete="CASCADE"), nullable=False, primary_key=True)
-    component_id = Column(Integer, ForeignKey("component.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    product_id = Column(Integer, ForeignKey("product.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    module_id = Column(Integer, ForeignKey("module.id", ondelete="CASCADE"), nullable=False, primary_key=True)
     
     # Relationships
-    project = relationship("Project", back_populates="project_components")
-    component = relationship("Component", back_populates="project_components")
+    product = relationship("Product", back_populates="product_modules")
+    module = relationship("Module", back_populates="product_modules")
 
 
 class RequirementParameter(Base):
@@ -430,30 +430,30 @@ class ParameterTag(Base):
     tag = relationship("Tag", back_populates="parameter_tags")
 
 
-class ComponentParameter(Base):
-    """Component parameters junction table"""
-    __tablename__ = "component_parameters"
+class ModuleParameter(Base):
+    """Module parameters junction table"""
+    __tablename__ = "module_parameters"
     
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False, primary_key=True)
-    component_id = Column(Integer, ForeignKey("component.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    module_id = Column(Integer, ForeignKey("module.id", ondelete="CASCADE"), nullable=False, primary_key=True)
     param_id = Column(Integer, ForeignKey("param.id", ondelete="CASCADE"), nullable=False, primary_key=True)
     
     # Relationships
-    component = relationship("Component", back_populates="component_parameters")
-    param = relationship("Param", back_populates="component_parameters")
+    module = relationship("Module", back_populates="module_parameters")
+    param = relationship("Param", back_populates="module_parameters")
 
 
-class ComponentRequirement(Base):
-    """Component requirements junction table"""
-    __tablename__ = "component_requirements"
+class ModuleRequirement(Base):
+    """Module requirements junction table"""
+    __tablename__ = "module_requirements"
     
     workspace_id = Column(Integer, ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False, primary_key=True)
-    component_id = Column(Integer, ForeignKey("component.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    module_id = Column(Integer, ForeignKey("module.id", ondelete="CASCADE"), nullable=False, primary_key=True)
     req_id = Column(Integer, ForeignKey("req.id", ondelete="CASCADE"), nullable=False, primary_key=True)
     
     # Relationships
-    component = relationship("Component", back_populates="component_requirements")
-    req = relationship("Req", back_populates="component_requirements")
+    module = relationship("Module", back_populates="module_requirements")
+    req = relationship("Req", back_populates="module_requirements")
 
 
 class TestcaseRequirement(Base):

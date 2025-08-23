@@ -18,16 +18,16 @@ This document describes the relationship between the database requirements docum
 The system manages:
 - **Organizations & Workspaces**: Multi-tenant organizational hierarchy with flexible access control
 - **Users & Membership**: Enhanced user profiles with organization membership and role-based access
-- **Requirements Trees & Components**: Requirement organization with explicit selection via junction tables
+- **Requirements Trees & Modules**: Requirement organization with explicit selection via junction tables
 - **Parameters & Versioning**: Flexible parameter management with alternatives and version history
 - **Testing Framework**: Test cases, runs, and asset management with public ID tracking
-- **Releases**: Component-based releases with draft mode and hierarchy
+- **Releases**: Module-based releases with draft mode and hierarchy
 - **Tagging & Grouping**: Workspace-scoped organization mechanisms
 
 ## Key Relationships to Maintain
-1. **Multi-Tenant Hierarchy**: Organization → User (membership) → Workspace (access) → Project → Component → ReqTree → Req
+1. **Multi-Tenant Hierarchy**: Organization → User (membership) → Workspace (access) → Product → Module → ReqTree → Req
 2. **Versioning**: Collapsed versioning with base_req_id/base_param_id and prev_version linking
-3. **Explicit Selection**: Component uses junction tables to select specific requirements and parameters
+3. **Explicit Selection**: Module uses junction tables to select specific requirements and parameters
 4. **Workspace Scoping**: All entities properly scoped to workspace with junction table workspace_id fields
 5. **Computed Properties**: Abstract status (never stored directly)
 
@@ -43,9 +43,9 @@ When updating data layer requirements:
 
 ## Constraints to Enforce
 - Abstract status is always computed, never stored
-- Components cannot be modified once created (business rule)
+- Modules cannot be modified once created (business rule)
 - Parameters can be shared across requirement versions via junction tables
-- Components control sharing through boolean flag
+- Modules control sharing through boolean flag
 - Users are optional in some relationships (executor, creator, owner)
 - Workspace scoping must be maintained across all relationships
 - Public IDs must be unique within workspace scope

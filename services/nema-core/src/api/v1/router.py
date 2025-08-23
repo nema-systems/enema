@@ -4,8 +4,8 @@ from fastapi import APIRouter
 
 from .workspaces import router as workspaces_router
 from .requirements import router as requirements_router
-from .projects import router as projects_router
-from .components import router as components_router
+from .products import router as products_router
+from .modules import router as modules_router
 from .reqtrees import router as reqtrees_router
 from .parameters import router as parameters_router
 from .testcases import router as testcases_router
@@ -33,15 +33,15 @@ router.include_router(
 )
 
 router.include_router(
-    projects_router,
-    prefix="/workspaces/{workspace_id}/projects", 
-    tags=["Projects"]
+    products_router,
+    prefix="/workspaces/{workspace_id}/products", 
+    tags=["Products"]
 )
 
 router.include_router(
-    components_router,
-    prefix="/workspaces/{workspace_id}/components",
-    tags=["Components"]
+    modules_router,
+    prefix="/workspaces/{workspace_id}/modules",
+    tags=["Modules"]
 )
 
 router.include_router(

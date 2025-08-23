@@ -37,22 +37,22 @@ PUT    /api/v1/workspaces/{wsId}             # Update workspace
 DELETE /api/v1/workspaces/{wsId}             # Delete workspace
 ```
 
-### Project Management
+### Product Management
 ```
-GET    /api/v1/workspaces/{wsId}/projects
-POST   /api/v1/workspaces/{wsId}/projects
-GET    /api/v1/workspaces/{wsId}/projects/{id}
-PUT    /api/v1/workspaces/{wsId}/projects/{id}
-DELETE /api/v1/workspaces/{wsId}/projects/{id}
+GET    /api/v1/workspaces/{wsId}/products
+POST   /api/v1/workspaces/{wsId}/products
+GET    /api/v1/workspaces/{wsId}/products/{id}
+PUT    /api/v1/workspaces/{wsId}/products/{id}
+DELETE /api/v1/workspaces/{wsId}/products/{id}
 ```
 
-### Component Management
+### Module Management
 ```
-GET    /api/v1/workspaces/{wsId}/components
-POST   /api/v1/workspaces/{wsId}/components
-GET    /api/v1/workspaces/{wsId}/components/{id}
-PUT    /api/v1/workspaces/{wsId}/components/{id}
-DELETE /api/v1/workspaces/{wsId}/components/{id}
+GET    /api/v1/workspaces/{wsId}/modules
+POST   /api/v1/workspaces/{wsId}/modules
+GET    /api/v1/workspaces/{wsId}/modules/{id}
+PUT    /api/v1/workspaces/{wsId}/modules/{id}
+DELETE /api/v1/workspaces/{wsId}/modules/{id}
 ```
 
 ### Requirement Trees
@@ -147,8 +147,8 @@ DELETE /api/v1/workspaces/{wsId}/groups/{id}
 ?updated_before=2024-12-31
 
 # Relationships
-?component_id=123        # Resources in component
-?project_id=456          # Components in project
+?module_id=123        # Resources in module
+?product_id=456          # Modules in product
 ?reqtree_id=789          # Requirements in tree
 ?author_id=999           # Created by user
 ?owner_id=888            # Owned by user
@@ -160,20 +160,20 @@ DELETE /api/v1/workspaces/{wsId}/groups/{id}
 
 ### Resource-Specific Filtering
 ```
-# Components
-GET /workspaces/1/components?project_id=123&shared=true
+# Modules
+GET /workspaces/1/modules?product_id=123&shared=true
 
 # Requirements  
-GET /workspaces/1/requirements?component_id=123&status=approved&level=system
+GET /workspaces/1/requirements?module_id=123&status=approved&level=system
 
 # Parameters
-GET /workspaces/1/parameters?component_id=123&type=number&group_id=auth
+GET /workspaces/1/parameters?module_id=123&type=number&group_id=auth
 
 # Test Cases
 GET /workspaces/1/testcases?status=active&tag_id=123
 
 # Releases
-GET /workspaces/1/releases?component_id=123&draft=false
+GET /workspaces/1/releases?module_id=123&draft=false
 
 # Assets
 GET /workspaces/1/assets?file_type=image&creator_id=456
@@ -271,7 +271,7 @@ GET /workspaces/1/assets?file_type=image&creator_id=456
 
 ### Business Logic Errors
 - **DUPLICATE_PUBLIC_ID**: Public ID already exists in workspace
-- **ABSTRACT_COMPONENT**: Cannot perform operation on abstract component
+- **ABSTRACT_COMPONENT**: Cannot perform operation on abstract module
 - **IMMUTABLE_RESOURCE**: Cannot modify immutable resource (published release)
 - **CROSS_WORKSPACE**: Attempted cross-workspace operation
 
