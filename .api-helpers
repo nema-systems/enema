@@ -1,0 +1,48 @@
+# API Testing Helper Functions
+# Source this file: source .api-helpers
+
+# Get dev token and export it
+get_dev_token() {
+  export DEV_TOKEN=$(curl -s -X POST "http://localhost:8000/api/dev/get-clerk-token" \
+    -H "Content-Type: application/json" \
+    -d '{"email":"dev@nemasystems.io","password":"dev"}' | jq -r .access_token)
+  
+  if [ "$DEV_TOKEN" = "null" ] || [ -z "$DEV_TOKEN" ]; then
+    echo "❌ Failed to get dev token"
+    return 1
+  fi
+  
+  echo "✅ Dev token set in DEV_TOKEN environment variable"
+}
+
+# Test API endpoint with dev token
+api_test() {
+  local endpoint="$1"
+  local method="${2:-GET}"
+  local data="$3"
+  
+  if [ -z "$DEV_TOKEN" ]; then
+    echo "🔑 Getting dev token first..."
+    get_dev_token || return 1
+  fi
+  
+  echo "🌐 Testing: $method /api/v1/$endpoint"
+  
+  if [ -n "$data" ]; then
+    curl -L "http://localhost:8000/api/v1/$endpoint" \
+      -X "$method" \
+      -H "Authorization: Bearer $DEV_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$data" | jq '.' 2>/dev/null || cat
+  else
+    curl -L "http://localhost:8000/api/v1/$endpoint" \
+      -X "$method" \
+      -H "Authorization: Bearer $DEV_TOKEN" | jq '.' 2>/dev/null || cat
+  fi
+}
+
+# Quick shortcuts
+alias api-get='api_test'
+alias api-post='function _api_post() { api_test "$1" POST "$2"; }; _api_post'
+alias api-put='function _api_put() { api_test "$1" PUT "$2"; }; _api_put'
+alias api-delete='function _api_delete() { api_test "$1" DELETE; }; _api_delete'

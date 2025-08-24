@@ -3,6 +3,7 @@ import workspacesReducer from "./workspaces/workspaces.slice";
 import requirementsReducer from "./requirements/requirements.slice";
 import productsReducer from "./products/products.slice";
 import modulesReducer from "./modules/modules.slice";
+import reqCollectionsReducer from "./req_collections/req_collections.slice";
 import parametersReducer from "./parameters/parameters.slice";
 import testcasesReducer from "./testcases/testcases.slice";
 import assetsReducer from "./assets/assets.slice";
@@ -13,6 +14,7 @@ const store = configureStore({
     requirements: requirementsReducer,
     products: productsReducer,
     modules: modulesReducer,
+    reqCollections: reqCollectionsReducer,
     parameters: parametersReducer,
     testcases: testcasesReducer,
     assets: assetsReducer,

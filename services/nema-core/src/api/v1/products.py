@@ -12,6 +12,8 @@ from ...database.models import Product, ProductModule, Module
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
+from ...products import ProductService
+from ...products.product_service import ProductDeletionPreview
 
 logger = structlog.get_logger(__name__)
 
@@ -23,12 +25,33 @@ class ProductCreate(BaseModel):
     name: str
     description: Optional[str] = None
     metadata: Optional[dict] = None
+    create_defaults: bool = True  # Whether to auto-create Module and ReqCollection
 
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     metadata: Optional[dict] = None
+
+
+class ModuleInfo(BaseModel):
+    """Basic module information"""
+    id: int
+    name: str
+    description: Optional[str]
+    shared: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class ReqCollectionInfo(BaseModel):
+    """Basic req collection information"""
+    id: int
+    name: str
+    
+    class Config:
+        from_attributes = True
 
 
 class ProductResponse(BaseModel):
@@ -38,6 +61,9 @@ class ProductResponse(BaseModel):
     description: Optional[str]
     metadata: Optional[dict]
     created_at: str
+    # Optional associated entities info
+    base_module: Optional[ModuleInfo] = None
+    req_collection: Optional[ReqCollectionInfo] = None
     
     class Config:
         from_attributes = True
@@ -52,6 +78,18 @@ class PaginatedProductResponse(BaseModel):
 class ProductDetailResponse(BaseModel):
     success: bool
     data: ProductResponse
+    meta: dict
+
+
+class DeletionPreviewResponse(BaseModel):
+    modules: List[dict]
+    req_collections: List[dict]
+    requirements_count: int
+
+
+class ProductDeletionPreviewResponse(BaseModel):
+    success: bool
+    data: DeletionPreviewResponse
     meta: dict
 
 
@@ -135,16 +173,58 @@ async def list_products(
     result = await db.execute(query)
     products = result.scalars().all()
     
-    product_list = [
-        ProductResponse(
-            id=product.id,
-            workspace_id=product.workspace_id,
-            name=product.name,
-            description=product.description,
-            metadata=product.meta_data,
-            created_at=product.created_at.isoformat()
-        ) for product in products
-    ]
+    # Use ProductService to get details for each product
+    product_service = ProductService()
+    product_list = []
+    
+    for product in products:
+        try:
+            details = await product_service.get_product_with_details(workspace_id, product.id)
+            
+            base_module = None
+            req_collection = None
+            
+            if details and details.module:
+                base_module = ModuleInfo(
+                    id=details.module.id,
+                    name=details.module.name,
+                    description=details.module.description,
+                    shared=details.module.shared
+                )
+            
+            if details and details.req_collection:
+                req_collection = ReqCollectionInfo(
+                    id=details.req_collection.id,
+                    name=details.req_collection.name
+                )
+            
+            product_response = ProductResponse(
+                id=product.id,
+                workspace_id=product.workspace_id,
+                name=product.name,
+                description=product.description,
+                metadata=product.meta_data,
+                created_at=product.created_at.isoformat(),
+                base_module=base_module,
+                req_collection=req_collection
+            )
+            product_list.append(product_response)
+            
+        except Exception as e:
+            # If getting details fails, just include basic product info
+            logger.warning("Failed to get product details for listing", 
+                         product_id=product.id,
+                         error=str(e))
+            
+            product_response = ProductResponse(
+                id=product.id,
+                workspace_id=product.workspace_id,
+                name=product.name,
+                description=product.description,
+                metadata=product.meta_data,
+                created_at=product.created_at.isoformat()
+            )
+            product_list.append(product_response)
     
     total_pages = (total + limit - 1) // limit
     
@@ -176,63 +256,138 @@ async def create_product(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create new product"""
+    """Create new product with optional auto-creation of Module and ReqCollection"""
     
-    # Create product
-    new_product = Product(
-        workspace_id=workspace_id,
-        name=product_data.name,
-        description=product_data.description,
-        meta_data=product_data.metadata
-    )
+    # Use ProductService for enhanced creation workflow
+    product_service = ProductService()
     
-    db.add(new_product)
-    await db.commit()
-    await db.refresh(new_product)
-    
-    logger.info("Product created", 
-                product_id=new_product.id, 
-                name=product_data.name,
-                workspace_id=workspace_id)
-    
-    product_response = ProductResponse(
-        id=new_product.id,
-        workspace_id=new_product.workspace_id,
-        name=new_product.name,
-        description=new_product.description,
-        metadata=new_product.meta_data,
-        created_at=new_product.created_at.isoformat()
-    )
-    
-    return ProductDetailResponse(
-        success=True,
-        data=product_response,
-        meta={
-            "timestamp": "2024-01-01T12:00:00Z",
-            "requestId": "req_123456"
-        }
-    )
+    try:
+        result = await product_service.create_product_with_defaults(
+            workspace_id=workspace_id,
+            name=product_data.name,
+            description=product_data.description,
+            metadata=product_data.metadata,
+            create_defaults=product_data.create_defaults
+        )
+        
+        # Build response with optional module and req_collection info
+        base_module = None
+        req_collection = None
+        
+        if result.module:
+            base_module = ModuleInfo(
+                id=result.module.id,
+                name=result.module.name,
+                description=result.module.description,
+                shared=result.module.shared
+            )
+        
+        if result.req_collection:
+            req_collection = ReqCollectionInfo(
+                id=result.req_collection.id,
+                name=result.req_collection.name
+            )
+        
+        product_response = ProductResponse(
+            id=result.product.id,
+            workspace_id=result.product.workspace_id,
+            name=result.product.name,
+            description=result.product.description,
+            metadata=result.product.meta_data,
+            created_at=result.product.created_at.isoformat(),
+            base_module=base_module,
+            req_collection=req_collection
+        )
+        
+        logger.info("Product created successfully", 
+                    product_id=result.product.id, 
+                    name=product_data.name,
+                    workspace_id=workspace_id,
+                    has_module=result.module is not None,
+                    has_req_collection=result.req_collection is not None)
+        
+        return ProductDetailResponse(
+            success=True,
+            data=product_response,
+            meta={
+                "timestamp": "2024-01-01T12:00:00Z",
+                "requestId": "req_123456",
+                "defaults_created": product_data.create_defaults
+            }
+        )
+        
+    except Exception as e:
+        logger.error("Product creation failed", 
+                    error=str(e),
+                    workspace_id=workspace_id,
+                    name=product_data.name)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create product: {str(e)}"
+        )
 
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)
 async def get_product(
     workspace_id: int,
     product_id: int,
+    include_details: bool = Query(False, description="Include associated module and req collection info"),
     workspace = Depends(validate_workspace_access),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get product details"""
+    """Get product details with optional module and req collection information"""
     
-    product = await get_product_in_workspace(workspace_id, product_id, db)
-    
-    product_response = ProductResponse(
-        id=product.id,
-        workspace_id=product.workspace_id,
-        name=product.name,
-        description=product.description,
-        metadata=product.meta_data,
-        created_at=product.created_at.isoformat()
-    )
+    if include_details:
+        # Use ProductService to get enhanced details
+        product_service = ProductService()
+        result = await product_service.get_product_with_details(workspace_id, product_id)
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Product not found in this workspace"
+            )
+        
+        # Build response with module and req_collection info
+        base_module = None
+        req_collection = None
+        
+        if result.module:
+            base_module = ModuleInfo(
+                id=result.module.id,
+                name=result.module.name,
+                description=result.module.description,
+                shared=result.module.shared
+            )
+        
+        if result.req_collection:
+            req_collection = ReqCollectionInfo(
+                id=result.req_collection.id,
+                name=result.req_collection.name
+            )
+        
+        product_response = ProductResponse(
+            id=result.product.id,
+            workspace_id=result.product.workspace_id,
+            name=result.product.name,
+            description=result.product.description,
+            metadata=result.product.meta_data,
+            created_at=result.product.created_at.isoformat(),
+            base_module=base_module,
+            req_collection=req_collection
+        )
+    else:
+        # Standard product retrieval
+        product = await get_product_in_workspace(workspace_id, product_id, db)
+        
+        product_response = ProductResponse(
+            id=product.id,
+            workspace_id=product.workspace_id,
+            name=product.name,
+            description=product.description,
+            metadata=product.meta_data,
+            created_at=product.created_at.isoformat()
+        )
     
     return ProductDetailResponse(
         success=True,
@@ -290,6 +445,44 @@ async def update_product(
     )
 
 
+@router.get("/{product_id}/deletion-preview", response_model=ProductDeletionPreviewResponse)
+async def get_product_deletion_preview(
+    workspace_id: int,
+    product_id: int,
+    workspace = Depends(validate_workspace_access),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get preview of what will be deleted when deleting a product"""
+    
+    product_service = ProductService()
+    
+    try:
+        preview = await product_service.get_deletion_preview(workspace_id, product_id)
+        
+        return ProductDeletionPreviewResponse(
+            success=True,
+            data=DeletionPreviewResponse(
+                modules=preview.modules_to_delete,
+                req_collections=preview.req_collections_to_delete,
+                requirements_count=preview.requirements_count
+            ),
+            meta={
+                "timestamp": "2024-01-01T12:00:00Z",
+                "requestId": "req_123456"
+            }
+        )
+        
+    except Exception as e:
+        logger.error("Product deletion preview failed", 
+                    error=str(e),
+                    product_id=product_id,
+                    workspace_id=workspace_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get deletion preview: {str(e)}"
+        )
+
+
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     workspace_id: int,
@@ -297,13 +490,22 @@ async def delete_product(
     workspace = Depends(validate_workspace_access),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete product"""
+    """Delete product and all associated entities"""
     
-    product = await get_product_in_workspace(workspace_id, product_id, db)
+    # Use ProductService for enhanced deletion workflow
+    product_service = ProductService()
     
-    await db.delete(product)
-    await db.commit()
-    
-    logger.info("Product deleted", 
-                product_id=product_id,
-                workspace_id=workspace_id)
+    try:
+        await product_service.delete_product(workspace_id, product_id)
+        logger.info("Product deleted via service", 
+                    product_id=product_id,
+                    workspace_id=workspace_id)
+    except Exception as e:
+        logger.error("Product deletion failed via service", 
+                    error=str(e),
+                    product_id=product_id,
+                    workspace_id=workspace_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete product: {str(e)}"
+        )

@@ -3,8 +3,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import List, Optional, Literal
+from pydantic import BaseModel, validator
 import structlog
 
 from ...database.connection import get_db
@@ -25,11 +25,11 @@ class RequirementCreate(BaseModel):
     owner_id: Optional[int] = None
     name: str
     definition: str
-    level: str  # system, subsystem, component
-    priority: str  # high, medium, low, critical
-    functional: str  # functional, non_functional
-    validation_method: str  # test, analysis, inspection, demonstration
-    status: str  # draft, approved, rejected, obsolete
+    level: Literal['L0', 'L1', 'L2', 'L3', 'L4', 'L5']  # L0-L5 levels
+    priority: Literal['critical', 'high', 'medium', 'low']  # priority levels
+    functional: Literal['functional', 'non_functional']  # functional types
+    validation_method: Literal['test', 'analysis', 'inspection', 'demonstration']  # validation methods
+    status: Literal['draft', 'approved', 'rejected', 'obsolete']  # status values
     rationale: Optional[str] = None
     notes: Optional[str] = None
     metadata: Optional[dict] = None
@@ -38,11 +38,11 @@ class RequirementCreate(BaseModel):
 class RequirementUpdate(BaseModel):
     name: Optional[str] = None
     definition: Optional[str] = None
-    level: Optional[str] = None
-    priority: Optional[str] = None
-    functional: Optional[str] = None
-    validation_method: Optional[str] = None
-    status: Optional[str] = None
+    level: Optional[Literal['L0', 'L1', 'L2', 'L3', 'L4', 'L5']] = None
+    priority: Optional[Literal['critical', 'high', 'medium', 'low']] = None
+    functional: Optional[Literal['functional', 'non_functional']] = None
+    validation_method: Optional[Literal['test', 'analysis', 'inspection', 'demonstration']] = None
+    status: Optional[Literal['draft', 'approved', 'rejected', 'obsolete']] = None
     owner_id: Optional[int] = None
     rationale: Optional[str] = None
     notes: Optional[str] = None
@@ -52,11 +52,11 @@ class RequirementUpdate(BaseModel):
 class RequirementVersionCreate(BaseModel):
     name: Optional[str] = None
     definition: Optional[str] = None
-    level: Optional[str] = None
-    priority: Optional[str] = None
-    functional: Optional[str] = None
-    validation_method: Optional[str] = None
-    status: Optional[str] = None
+    level: Optional[Literal['L0', 'L1', 'L2', 'L3', 'L4', 'L5']] = None
+    priority: Optional[Literal['critical', 'high', 'medium', 'low']] = None
+    functional: Optional[Literal['functional', 'non_functional']] = None
+    validation_method: Optional[Literal['test', 'analysis', 'inspection', 'demonstration']] = None
+    status: Optional[Literal['draft', 'approved', 'rejected', 'obsolete']] = None
     owner_id: Optional[int] = None
     rationale: Optional[str] = None
     notes: Optional[str] = None
@@ -264,8 +264,8 @@ async def list_requirements(
             status=req.status,
             rationale=req.rationale,
             notes=req.notes,
-            metadata=req.metadata,
-            created_at=req.created_at.isoformat()
+            metadata=req.meta_data,
+            created_at=req.created_at.isoformat() if req.created_at else None
         ) for req in requirements
     ]
     

@@ -18,12 +18,33 @@ import {
 import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
+import ProductModal, { ProductFormData } from "../components/modals/product-modal";
+import SuccessToast from "../components/ui/success-toast";
+import EnhancedProductCard from "../components/cards/enhanced-product-card";
+import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
+import { removeProduct } from "../store/products/products.slice";
 
-interface Product {
+interface ModuleInfo {
   id: number;
   name: string;
   description?: string;
+  shared: boolean;
+}
+
+interface ReqCollectionInfo {
+  id: number;
+  name: string;
+}
+
+interface Product {
+  id: number;
+  workspace_id: number;
+  name: string;
+  description?: string;
+  metadata?: any;
   created_at: string;
+  base_module?: ModuleInfo;
+  req_collection?: ReqCollectionInfo;
 }
 
 interface Workspace {
@@ -44,6 +65,17 @@ const ProductsView = () => {
   const workspace = useAppSelector(selectSelectedWorkspace);
   
   const [workspaceDetails, setWorkspaceDetails] = useState<Workspace | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [lastCreatedProduct, setLastCreatedProduct] = useState<Product | null>(null);
+  
+  // Delete modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletionPreview, setDeletionPreview] = useState<any>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const fetchWorkspace = async () => {
     if (!workspaceId) return;
@@ -86,22 +118,21 @@ const ProductsView = () => {
     }
   };
 
-  const createProduct = async () => {
+  const handleCreateProduct = async (formData: ProductFormData) => {
     if (!workspaceId) return;
 
-    const name = prompt("Enter product name:");
-    if (!name) return;
-
-    const description = prompt("Enter product description (optional):") || "";
-
+    setIsCreating(true);
+    
     try {
       const token = await getToken({ template: "default" });
       
       const response = await axios.post(
         `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
         {
-          name,
-          description,
+          name: formData.name,
+          description: formData.description,
+          create_defaults: true, // Always create base module and req collection
+          selected_module_ids: formData.selected_module_ids || [], // Include selected shared modules
         },
         {
           headers: {
@@ -111,10 +142,79 @@ const ProductsView = () => {
         }
       );
       
-      dispatch(addProduct(response.data.data));
+      const createdProduct = response.data.data;
+      dispatch(addProduct(createdProduct));
+      
+      // Store for success toast
+      setLastCreatedProduct(createdProduct);
+      
+      // Close modal and show success
+      setIsModalOpen(false);
+      setShowSuccessToast(true);
+      
     } catch (err: any) {
       console.error("Error creating product:", err);
       alert(err.response?.data?.message || "Failed to create product");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    setProductToDelete(product);
+    setIsDeleteModalOpen(true);
+    setDeletionPreview(null);
+    
+    // Fetch deletion preview
+    setIsLoadingPreview(true);
+    try {
+      const token = await getToken({ template: "default" });
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products/${product.id}/deletion-preview`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setDeletionPreview(response.data.data);
+    } catch (err: any) {
+      console.error("Error fetching deletion preview:", err);
+      // Continue without preview - deletion will still work
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete || !workspaceId) return;
+
+    setIsDeleting(true);
+    
+    try {
+      const token = await getToken({ template: "default" });
+      
+      await axios.delete(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products/${productToDelete.id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      // Remove from store
+      dispatch(removeProduct(productToDelete.id));
+      
+      // Close modal and reset state
+      setIsDeleteModalOpen(false);
+      setProductToDelete(null);
+      
+    } catch (err: any) {
+      console.error("Error deleting product:", err);
+      throw new Error(err.response?.data?.detail || "Failed to delete product");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -129,19 +229,6 @@ const ProductsView = () => {
     };
   }, [workspaceId, dispatch]);
 
-  const getBgColorFromId = (id: number) => {
-    const colors = [
-      'bg-blue-500',
-      'bg-green-500', 
-      'bg-purple-500',
-      'bg-red-500',
-      'bg-yellow-500',
-      'bg-indigo-500',
-      'bg-pink-500',
-      'bg-teal-500'
-    ];
-    return colors[id % colors.length];
-  };
 
   return (
     <div className="p-6">
@@ -156,7 +243,7 @@ const ProductsView = () => {
           </div>
           <div>
             <button
-              onClick={createProduct}
+              onClick={openCreateModal}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Create Product
@@ -208,7 +295,7 @@ const ProductsView = () => {
               </p>
               <div className="mt-6">
                 <button
-                  onClick={createProduct}
+                  onClick={openCreateModal}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <svg className="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -219,38 +306,74 @@ const ProductsView = () => {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {products.map((product) => (
-                <div
+                <EnhancedProductCard
                   key={product.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                  product={product}
+                  workspaceId={workspaceId!}
                   onClick={() => {
                     // TODO: Navigate to product details or requirements filtered by product
                     console.log("Navigate to product:", product.id);
                   }}
-                >
-                  <div className="flex">
-                    <div className={`w-1 ${getBgColorFromId(product.id)} flex-shrink-0`} />
-                    <div className="p-4 flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                        {product.name}
-                      </h3>
-                      {product.description && (
-                        <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
-                          {product.description}
-                        </p>
-                      )}
-                      <p className="text-gray-400 dark:text-gray-500 text-xs">
-                        Created: {new Date(product.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  onDelete={handleDeleteProduct}
+                />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Product Creation Modal */}
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateProduct}
+        isLoading={isCreating}
+        workspaceId={workspaceId!}
+      />
+
+      {/* Success Toast */}
+      <SuccessToast
+        isVisible={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        title="Product Created Successfully!"
+        message={lastCreatedProduct?.base_module && lastCreatedProduct?.req_collection 
+          ? "Your product has been created with a base module and requirements collection." 
+          : "Your product has been created."}
+        createdResources={[
+          ...(lastCreatedProduct?.base_module ? [{
+            type: 'module' as const,
+            id: lastCreatedProduct.base_module.id,
+            name: lastCreatedProduct.base_module.name
+          }] : []),
+          ...(lastCreatedProduct?.req_collection ? [{
+            type: 'req_collection' as const,
+            id: lastCreatedProduct.req_collection.id,
+            name: lastCreatedProduct.req_collection.name
+          }] : [])
+        ]}
+        onViewRequirements={() => navigate(`/workspace/${workspaceId}/requirements`)}
+        onViewModules={() => navigate(`/workspace/${workspaceId}/modules`)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setProductToDelete(null);
+          setDeletionPreview(null);
+          setIsLoadingPreview(false);
+        }}
+        onConfirm={confirmDeleteProduct}
+        itemName={productToDelete?.name || ""}
+        itemType="Product"
+        isLoading={isDeleting}
+        warningMessage="This will permanently delete the product and any modules or requirements collections that were automatically created with it (shared resources will be preserved)."
+        deletionPreview={deletionPreview}
+        isLoadingPreview={isLoadingPreview}
+      />
     </div>
   );
 };

@@ -82,6 +82,8 @@ app.add_middleware(
         "http://localhost:3001",  # client-admin  
         "http://localhost:3002",  # client-landing
         "http://localhost:3003",  # sandbox client-app
+        "http://localhost:3004",  # sandbox client-app (alt port)
+        "http://localhost:3005",  # sandbox client-app (alt port 2)
         "http://localhost:8080",  # temporal-webui
         "http://localhost:8088",  # temporal-webui-alt
     ],
@@ -156,6 +158,17 @@ app.include_router(
 
 # Include API v1 endpoints
 app.include_router(api_v1_router)
+
+# Include development endpoints (development only)
+settings = get_settings()
+if settings.is_development:
+    from .api.dev_routes import router as dev_router
+    app.include_router(
+        dev_router,
+        prefix="/api/dev",
+        tags=["Development"]
+    )
+    logger.info("Development endpoints enabled")
 
 # Add middleware for request logging
 @app.middleware("http")

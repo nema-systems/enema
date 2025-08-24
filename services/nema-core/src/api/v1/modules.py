@@ -20,12 +20,15 @@ router = APIRouter()
 
 # Pydantic models
 class ModuleCreate(BaseModel):
-    req_collection_id: int
+    req_collection_id: Optional[int] = None  # Optional when creating new collection
     name: str
     description: Optional[str] = None
     rules: Optional[str] = None
     shared: bool = False
     metadata: Optional[dict] = None
+    # New fields for req collection creation
+    create_new_req_collection: bool = False
+    new_req_collection_name: Optional[str] = None
 
 
 class ModuleUpdate(BaseModel):
@@ -199,38 +202,94 @@ async def create_module(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create new module"""
+    """Create new module with optional req collection creation"""
     
-    # Validate req_collection belongs to workspace
-    req_collection_query = select(ReqCollection).where(
-        and_(
-            ReqCollection.id == module_data.req_collection_id,
-            ReqCollection.workspace_id == workspace_id
-        )
-    )
-    req_collection_result = await db.execute(req_collection_query)
-    req_collection = req_collection_result.scalar_one_or_none()
-    
-    if not req_collection:
+    # Validation
+    if module_data.create_new_req_collection and module_data.req_collection_id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Requirement tree not found in this workspace"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot specify both create_new_req_collection and req_collection_id"
         )
     
-    # Create module
-    new_module = Module(
-        workspace_id=workspace_id,
-        req_collection_id=module_data.req_collection_id,
-        name=module_data.name,
-        description=module_data.description,
-        rules=module_data.rules,
-        shared=module_data.shared,
-        meta_data=module_data.metadata
-    )
+    if not module_data.create_new_req_collection and not module_data.req_collection_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must specify either create_new_req_collection or req_collection_id"
+        )
     
-    db.add(new_module)
-    await db.commit()
-    await db.refresh(new_module)
+    if module_data.create_new_req_collection and not module_data.new_req_collection_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="new_req_collection_name is required when create_new_req_collection is true"
+        )
+    
+    req_collection_id = module_data.req_collection_id
+    
+    try:
+        # Handle req collection creation or validation
+        if module_data.create_new_req_collection:
+            # Create new req collection
+            new_req_collection = ReqCollection(
+                workspace_id=workspace_id,
+                name=module_data.new_req_collection_name,
+                meta_data={"created_by": "module_creation", "module_name": module_data.name}
+            )
+            
+            db.add(new_req_collection)
+            await db.flush()  # Get the ID
+            req_collection_id = new_req_collection.id
+            
+            logger.info("Created new req collection for module", 
+                       req_collection_id=req_collection_id,
+                       name=module_data.new_req_collection_name,
+                       module_name=module_data.name)
+        
+        else:
+            # Validate existing req_collection belongs to workspace
+            req_collection_query = select(ReqCollection).where(
+                and_(
+                    ReqCollection.id == module_data.req_collection_id,
+                    ReqCollection.workspace_id == workspace_id
+                )
+            )
+            req_collection_result = await db.execute(req_collection_query)
+            req_collection = req_collection_result.scalar_one_or_none()
+            
+            if not req_collection:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Requirement collection not found in this workspace"
+                )
+        
+        # Create module
+        new_module = Module(
+            workspace_id=workspace_id,
+            req_collection_id=req_collection_id,
+            name=module_data.name,
+            description=module_data.description,
+            rules=module_data.rules,
+            shared=module_data.shared,
+            meta_data=module_data.metadata
+        )
+        
+        db.add(new_module)
+        await db.commit()
+        await db.refresh(new_module)
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error("Module creation failed", 
+                    error=str(e),
+                    workspace_id=workspace_id,
+                    module_name=module_data.name)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create module: {str(e)}"
+        )
     
     logger.info("Module created", 
                 module_id=new_module.id, 

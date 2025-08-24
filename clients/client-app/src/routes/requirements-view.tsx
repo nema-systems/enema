@@ -19,6 +19,8 @@ import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selector
 import { setSelectedWorkspaceId } from "../store/workspaces/workspaces.slice";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
+import RequirementCreationModal, { RequirementFormData } from "../components/modals/requirement-creation-modal";
+import SuccessToast from "../components/ui/success-toast";
 import { DocumentTextIcon } from "@heroicons/react/24/outline";
 
 
@@ -43,6 +45,13 @@ const RequirementsView = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("created_at");
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [lastCreatedRequirement, setLastCreatedRequirement] = useState<any>(null);
+  const [reqCollections, setReqCollections] = useState<any[]>([]);
 
   const fetchWorkspace = async () => {
     if (!workspaceId) return;
@@ -85,54 +94,50 @@ const RequirementsView = () => {
     }
   };
 
-  const createRequirement = async () => {
+  const fetchReqCollections = async () => {
+    if (!workspaceId) return;
+    
+    try {
+      const token = await getToken({ template: "default" });
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setReqCollections(response.data.data?.items || []);
+    } catch (err: any) {
+      console.error("Error fetching req collections:", err);
+    }
+  };
+
+  const handleCreateRequirement = async (formData: RequirementFormData) => {
     if (!workspaceId) return;
 
-    const name = prompt("Enter requirement name:");
-    if (!name) return;
-
-    const definition = prompt("Enter requirement definition:") || "";
-    const priority = prompt("Enter priority (HIGH, MEDIUM, LOW, CRITICAL):") || "MEDIUM";
-    const level = prompt("Enter level (SYSTEM, SUBSYSTEM, COMPONENT):") || "SYSTEM";
-
+    setIsCreating(true);
+    
     try {
       const token = await getToken({ template: "default" });
       
-      // First create a req_collection for this workspace
-      let reqCollectionId: number;
-      try {
-        const reqCollectionResponse = await axios.post(
-          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
-          {
-            name: "Default Requirements Collection",
-            description: "Default requirements collection for workspace"
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        reqCollectionId = reqCollectionResponse.data.data.id;
-      } catch (reqCollectionErr: any) {
-        console.error("Failed to create req_collection:", reqCollectionErr);
-        alert("Failed to create requirements collection. Please contact support.");
-        return;
-      }
+      const payload = {
+        req_collection_id: formData.req_collection_id,
+        parent_req_id: formData.parent_req_id,
+        name: formData.name,
+        definition: formData.definition,
+        level: formData.level,
+        priority: formData.priority,
+        functional: formData.functional,
+        validation_method: formData.validation_method,
+        status: formData.status,
+        rationale: formData.rationale,
+        notes: formData.notes,
+      };
+      
+      console.log('Creating requirement with payload:', payload);
       
       const response = await axios.post(
         `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
-        {
-          req_collection_id: reqCollectionId,
-          name,
-          definition,
-          level: level.toUpperCase(),
-          priority: priority.toUpperCase(),
-          functional: "FUNCTIONAL",
-          validation_method: "TEST",
-          status: "DRAFT",
-        },
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -141,11 +146,28 @@ const RequirementsView = () => {
         }
       );
       
-      dispatch(addRequirement(response.data.data)); // Add to Redux store
+      const createdRequirement = response.data.data;
+      dispatch(addRequirement(createdRequirement));
+      
+      // Store for success toast
+      setLastCreatedRequirement(createdRequirement);
+      
+      // Close modal and show success
+      setIsModalOpen(false);
+      setShowSuccessToast(true);
+      
     } catch (err: any) {
       console.error("Error creating requirement:", err);
-      alert(err.response?.data?.message || "Failed to create requirement");
+      console.error('API Error Details:', err.response?.data);
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || 'Failed to create requirement';
+      alert(`Error creating requirement: ${errorMessage}`);
+    } finally {
+      setIsCreating(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setIsModalOpen(true);
   };
 
   useEffect(() => {
@@ -156,6 +178,7 @@ const RequirementsView = () => {
     if (workspaceId) {
       fetchWorkspace();
       fetchRequirements();
+      fetchReqCollections();
     }
     
     return () => {
@@ -236,7 +259,7 @@ const RequirementsView = () => {
           </div>
           <div>
             <button
-              onClick={createRequirement}
+              onClick={openCreateModal}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Create Requirement
@@ -347,7 +370,7 @@ const RequirementsView = () => {
                 </p>
                 {requirements.length === 0 ? (
                   <button
-                    onClick={createRequirement}
+                    onClick={openCreateModal}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
                     Create Your First Requirement
@@ -402,6 +425,30 @@ const RequirementsView = () => {
             )}
         </div>
       </div>
+
+      {/* Requirement Creation Modal */}
+      <RequirementCreationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateRequirement}
+        isLoading={isCreating}
+        reqCollections={reqCollections}
+      />
+
+      {/* Success Toast */}
+      <SuccessToast
+        isVisible={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        title="Requirement Created Successfully!"
+        message={`"${lastCreatedRequirement?.name}" has been added to the requirement collection.`}
+        createdResources={[
+          ...(lastCreatedRequirement ? [{
+            type: 'requirement' as const,
+            id: lastCreatedRequirement.id,
+            name: lastCreatedRequirement.name
+          }] : [])
+        ]}
+      />
     </div>
   );
 };

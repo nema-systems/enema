@@ -16,8 +16,9 @@ import {
   ComputerDesktopIcon,
   CubeIcon,
   AdjustmentsHorizontalIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
+  FolderIcon,
 } from "@heroicons/react/24/outline";
 import { OrganizationSwitcher, UserButton, useAuth, useUser, useOrganization } from "@clerk/clerk-react";
 import axios from "axios";
@@ -212,14 +213,19 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       icon: RectangleGroupIcon,
     },
     {
-      name: 'Requirements',
-      href: `/workspace/${navigationWorkspace.id}/requirements`,
-      icon: DocumentTextIcon,
-    },
-    {
       name: 'Modules',
       href: `/workspace/${navigationWorkspace.id}/modules`,
       icon: CubeIcon,
+    },
+    {
+      name: 'Req Collections',
+      href: `/workspace/${navigationWorkspace.id}/req_collections`,
+      icon: FolderIcon,
+    },
+    {
+      name: 'Requirements',
+      href: `/workspace/${navigationWorkspace.id}/requirements`,
+      icon: DocumentTextIcon,
     },
     {
       name: 'Parameters',
@@ -232,7 +238,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       icon: ClipboardDocumentListIcon,
     },
     {
-      name: 'Assets',
+      name: 'Files',
       href: `/workspace/${navigationWorkspace.id}/assets`,
       icon: DocumentIcon,
     },
@@ -250,7 +256,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
             <NemaLogo />
           </div>
           {(!sidebarCollapsed || mobile) && (
-            <span className="ml-2 text-lg font-semibold text-gray-900 dark:text-white truncate">Nema</span>
+            <span className="ml-2 text-4xl font-serif font-medium text-gray-900 dark:text-gray-100 tracking-normal truncate">nema</span>
           )}
         </button>
       </div>
@@ -268,6 +274,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
           </li>
         </ul>
         
+        
         {/* Collapse toggle button */}
         {!mobile && (
           <div className="flex justify-center py-2">
@@ -277,9 +284,9 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
+                <ChevronDoubleRightIcon className="h-5 w-5" />
               ) : (
-                <ChevronLeftIcon className="h-5 w-5" />
+                <ChevronDoubleLeftIcon className="h-5 w-5" />
               )}
             </button>
           </div>
@@ -533,8 +540,8 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
             </button>
             <div className="flex-1 px-4 flex justify-between">
               <div className="flex-1 flex items-center">
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {currentWorkspace?.name || 'Nema'}
+                <h1 className="text-4xl font-serif font-medium text-gray-900 dark:text-gray-100 tracking-normal">
+                  {currentWorkspace?.name || 'nema'}
                 </h1>
               </div>
               <div className="ml-4 flex items-center md:ml-6">

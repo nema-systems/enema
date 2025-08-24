@@ -134,7 +134,7 @@ async def list_req_collections(
             id=req_collection.id,
             workspace_id=req_collection.workspace_id,
             name=req_collection.name,
-            metadata=req_collection.metadata,
+            metadata=req_collection.meta_data,
             created_at=req_collection.created_at.isoformat()
         ) for req_collection in req_collections
     ]
@@ -175,7 +175,7 @@ async def create_req_collection(
     new_req_collection = ReqCollection(
         workspace_id=workspace_id,
         name=req_collection_data.name,
-        metadata=req_collection_data.metadata
+        meta_data=req_collection_data.metadata
     )
     
     db.add(new_req_collection)
@@ -191,7 +191,7 @@ async def create_req_collection(
         id=new_req_collection.id,
         workspace_id=new_req_collection.workspace_id,
         name=new_req_collection.name,
-        metadata=new_req_collection.metadata,
+        metadata=new_req_collection.meta_data,
         created_at=new_req_collection.created_at.isoformat()
     )
     
@@ -220,7 +220,7 @@ async def get_req_collection(
         id=req_collection.id,
         workspace_id=req_collection.workspace_id,
         name=req_collection.name,
-        metadata=req_collection.metadata,
+        metadata=req_collection.meta_data,
         created_at=req_collection.created_at.isoformat()
     )
     
@@ -250,7 +250,7 @@ async def update_req_collection(
     if req_collection_data.name is not None:
         req_collection.name = req_collection_data.name
     if req_collection_data.metadata is not None:
-        req_collection.metadata = req_collection_data.metadata
+        req_collection.meta_data = req_collection_data.metadata
     
     await db.commit()
     await db.refresh(req_collection)
@@ -263,7 +263,7 @@ async def update_req_collection(
         id=req_collection.id,
         workspace_id=req_collection.workspace_id,
         name=req_collection.name,
-        metadata=req_collection.metadata,
+        metadata=req_collection.meta_data,
         created_at=req_collection.created_at.isoformat()
     )
     

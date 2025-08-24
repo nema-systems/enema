@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = "../../.env"  # Point to sandbox root directory
         case_sensitive = False
+        extra = 'ignore'  # Ignore extra environment variables
         
     @property
     def temporal_address(self) -> str:

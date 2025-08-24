@@ -28,9 +28,17 @@ class ClerkTokenData:
         self.iat = payload.get("iat")
         
         # Extract organization context from Clerk token
-        # In Clerk, this might be in org_id, org_slug, or custom claims
+        # In Clerk, this might be in org_id, org_slug, or custom claims, or nested in 'o'
         self.organization_id = payload.get("org_id") or payload.get("organization_id")
         self.organization_slug = payload.get("org_slug") or payload.get("organization_slug")
+        
+        # Check if organization data is in the 'o' field (Clerk v5+ format)
+        org_data = payload.get("o", {})
+        if org_data and isinstance(org_data, dict):
+            if not self.organization_id and "id" in org_data:
+                self.organization_id = org_data["id"]
+            if not self.organization_slug and "slg" in org_data:
+                self.organization_slug = org_data["slg"]
         
         # Try to extract from public metadata if available
         public_metadata = payload.get("public_metadata", {})
