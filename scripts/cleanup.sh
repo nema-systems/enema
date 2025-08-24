@@ -33,7 +33,6 @@ if confirm "Remove Docker images?"; then
     echo "🗑️  Removing Docker images..."
     docker rmi nema-core:latest 2>/dev/null || true
     docker rmi nema-client-app:latest 2>/dev/null || true
-    docker rmi nema-client-admin:latest 2>/dev/null || true
     docker rmi nema-client-landing:latest 2>/dev/null || true
     
     # Remove dangling images

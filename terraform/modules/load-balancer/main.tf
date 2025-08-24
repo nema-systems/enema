@@ -138,24 +138,6 @@ resource "aws_lb_listener_rule" "http_api" {
   }
 }
 
-# Path-based routing for admin
-resource "aws_lb_listener_rule" "http_admin_path" {
-  count = var.certificate_arn == "" ? 1 : 0
-
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 200
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main["client-admin"].arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/admin", "/admin/*"]
-    }
-  }
-}
 
 # Path-based routing for landing
 resource "aws_lb_listener_rule" "http_landing_path" {
@@ -195,24 +177,6 @@ resource "aws_lb_listener_rule" "http_temporal_path" {
   }
 }
 
-# Host-based routing for admin (optional - for custom domains)
-resource "aws_lb_listener_rule" "http_admin_host" {
-  count = var.certificate_arn == "" ? 1 : 0
-
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 500
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main["client-admin"].arn
-  }
-
-  condition {
-    host_header {
-      values = ["admin.*"]
-    }
-  }
-}
 
 # Host-based routing for landing (optional - for custom domains)
 resource "aws_lb_listener_rule" "http_landing_host" {
@@ -272,24 +236,6 @@ resource "aws_lb_listener_rule" "https_api" {
   }
 }
 
-# Path-based routing for admin (HTTPS)
-resource "aws_lb_listener_rule" "https_admin_path" {
-  count = var.certificate_arn != "" ? 1 : 0
-
-  listener_arn = aws_lb_listener.https[0].arn
-  priority     = 200
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main["client-admin"].arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/admin", "/admin/*"]
-    }
-  }
-}
 
 # Path-based routing for landing (HTTPS)
 resource "aws_lb_listener_rule" "https_landing_path" {
@@ -329,24 +275,6 @@ resource "aws_lb_listener_rule" "https_temporal_path" {
   }
 }
 
-# Host-based routing for admin (HTTPS)
-resource "aws_lb_listener_rule" "https_admin_host" {
-  count = var.certificate_arn != "" ? 1 : 0
-
-  listener_arn = aws_lb_listener.https[0].arn
-  priority     = 500
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main["client-admin"].arn
-  }
-
-  condition {
-    host_header {
-      values = ["admin.*"]
-    }
-  }
-}
 
 # Host-based routing for landing (HTTPS)
 resource "aws_lb_listener_rule" "https_landing_host" {

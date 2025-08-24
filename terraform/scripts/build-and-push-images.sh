@@ -123,7 +123,7 @@ build_and_push_all() {
     fi
     
     # Build and push client services
-    for client in client-app client-admin client-landing; do
+    for client in client-app client-landing; do
         if [ -f "clients/$client/Dockerfile" ]; then
             build_and_push_service "$client" "clients/$client/Dockerfile" "clients/$client"
         else
@@ -142,7 +142,6 @@ show_completion_info() {
     echo "🐳 Images pushed to ECR:"
     echo "  • $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_NAME/$ENVIRONMENT/nema-core:latest"
     echo "  • $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_NAME/$ENVIRONMENT/client-app:latest"
-    echo "  • $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_NAME/$ENVIRONMENT/client-admin:latest"
     echo "  • $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_NAME/$ENVIRONMENT/client-landing:latest"
     echo ""
     echo "🚀 ECS services should automatically restart with new images"
@@ -206,12 +205,12 @@ case "${1:-}" in
             "nema-core")
                 build_and_push_service "nema-core" "services/nema-core/Dockerfile" "services/nema-core"
                 ;;
-            "client-app"|"client-admin"|"client-landing")
+            "client-app"|"client-landing")
                 build_and_push_service "$service_name" "clients/$service_name/Dockerfile" "clients/$service_name"
                 ;;
             *)
                 log_error "Unknown service: $service_name"
-                log_info "Available services: nema-core, client-app, client-admin, client-landing"
+                log_info "Available services: nema-core, client-app, client-landing"
                 exit 1
                 ;;
         esac

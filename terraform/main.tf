@@ -54,7 +54,6 @@ module "container_registry" {
   repositories = [
     "nema-core",
     "client-app",
-    "client-admin", 
     "client-landing",
     "temporal-server",
     "temporal-webui"

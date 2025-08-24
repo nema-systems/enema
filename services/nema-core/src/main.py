@@ -79,7 +79,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # client-app
-        "http://localhost:3001",  # client-admin  
         "http://localhost:3002",  # client-landing
         "http://localhost:3003",  # sandbox client-app
         "http://localhost:3004",  # sandbox client-app (alt port)

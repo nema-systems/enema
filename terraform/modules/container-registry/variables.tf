@@ -14,7 +14,6 @@ variable "repositories" {
   default = [
     "nema-core",
     "client-app", 
-    "client-admin",
     "client-landing",
     "temporal-server",
     "temporal-webui"

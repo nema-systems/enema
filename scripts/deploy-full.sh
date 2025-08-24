@@ -189,7 +189,6 @@ update_ecs_services() {
     local services=(
         "nema-sandbox-production-nema-core"
         "nema-sandbox-production-client-app"
-        "nema-sandbox-production-client-admin"
         "nema-sandbox-production-client-landing"
     )
     

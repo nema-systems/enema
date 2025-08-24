@@ -43,10 +43,6 @@ output "client_app_target_group_arn" {
   value       = aws_lb_target_group.main["client-app"].arn
 }
 
-output "client_admin_target_group_arn" {
-  description = "ARN of the client-admin target group"
-  value       = aws_lb_target_group.main["client-admin"].arn
-}
 
 output "client_landing_target_group_arn" {
   description = "ARN of the client-landing target group"

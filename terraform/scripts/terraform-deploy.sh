@@ -152,7 +152,7 @@ build_and_push_images() {
     fi
     
     # TODO: Build and push client images
-    # for client in client-app client-admin client-landing; do
+    # for client in client-app client-landing; do
     #     if [ -f "../../clients/$client/Dockerfile" ]; then
     #         local repo_url=$(terraform output -raw ${client//-/_}_repository_url 2>/dev/null || echo "")
     #         if [ -n "$repo_url" ]; then

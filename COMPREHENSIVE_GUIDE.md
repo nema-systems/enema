@@ -114,7 +114,6 @@ cd ../ && cp terraform.tfvars.local.example terraform.tfvars.local
 - **postgres**: PostgreSQL database with schemas for nema, auth, temporal, embeddings
 - **temporal**: Workflow orchestration engine
 - **client-app**: React frontend dashboard with project and artifact management
-- **client-admin**: React admin panel
 - **client-landing**: Marketing landing page
 
 #### Database Schema
@@ -148,7 +147,6 @@ sandbox/
 │   │   └── config/                  # Configuration management
 ├── clients/                         # Frontend applications
 │   ├── client-app/                  # Main React dashboard
-│   ├── client-admin/                # Admin panel
 │   └── client-landing/              # Landing page
 ├── terraform/                       # Infrastructure as Code
 │   ├── modules/                     # Terraform modules
@@ -184,7 +182,6 @@ docker-compose up -d
 #### Port Reference
 
 - **3000**: React frontend dashboard (client-app)
-- **3001**: Admin panel (client-admin)
 - **3002**: Landing page (client-landing)
 - **8000**: FastAPI backend API (nema-core)
 - **8088**: Temporal Web UI
@@ -236,15 +233,13 @@ terraform output
 
 1. **nema-core** (512 CPU, 1024 MB) - FastAPI backend, 2 instances
 2. **client-app** (256 CPU, 512 MB) - React frontend, 1 instance
-3. **client-admin** (256 CPU, 512 MB) - Admin panel, 1 instance
-4. **client-landing** (256 CPU, 512 MB) - Landing page, 1 instance
-5. **temporal-server** (512 CPU, 1024 MB) - Workflow engine, 1 instance
-6. **temporal-webui** (256 CPU, 512 MB) - Temporal monitoring, 1 instance
+3. **client-landing** (256 CPU, 512 MB) - Landing page, 1 instance
+4. **temporal-server** (512 CPU, 1024 MB) - Workflow engine, 1 instance
+5. **temporal-webui** (256 CPU, 512 MB) - Temporal monitoring, 1 instance
 
 #### Load Balancer Routing
 
 - **/** → nema-core (API and default)
-- **/admin** → client-admin
 - **/landing** → client-landing
 - **/temporal** → temporal-webui
 - **/api/**, **/docs**, **/health** → nema-core
@@ -363,7 +358,6 @@ All images built for linux/amd64 and pushed to ECR:
 
 - `545365949069.dkr.ecr.us-west-2.amazonaws.com/nema-sandbox/production/nema-core:latest`
 - `545365949069.dkr.ecr.us-west-2.amazonaws.com/nema-sandbox/production/client-app:latest`
-- `545365949069.dkr.ecr.us-west-2.amazonaws.com/nema-sandbox/production/client-admin:latest`
 - `545365949069.dkr.ecr.us-west-2.amazonaws.com/nema-sandbox/production/client-landing:latest`
 
 ### Service Updates

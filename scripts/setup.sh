@@ -29,7 +29,7 @@ echo "Building nema-core..."
 docker build -t nema-core:latest ./services/nema-core/
 
 # Build client applications (if Dockerfiles exist)
-for client in client-app client-admin client-landing; do
+for client in client-app client-landing; do
     if [ -d "./clients/$client" ] && [ -f "./clients/$client/Dockerfile" ]; then
         echo "Building $client..."
         docker build -t nema-$client:latest ./clients/$client/

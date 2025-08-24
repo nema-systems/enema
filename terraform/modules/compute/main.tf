@@ -37,14 +37,6 @@ resource "aws_cloudwatch_log_group" "client_app" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "client_admin" {
-  name              = "/aws/ecs/${var.project_name}-${var.environment}/client-admin"
-  retention_in_days = var.log_retention_in_days
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-client-admin-logs"
-  }
-}
 
 resource "aws_cloudwatch_log_group" "client_landing" {
   name              = "/aws/ecs/${var.project_name}-${var.environment}/client-landing"
@@ -126,34 +118,6 @@ resource "aws_ecs_task_definition" "client_app" {
   }
 }
 
-# Task Definition for Client Admin
-resource "aws_ecs_task_definition" "client_admin" {
-  family                   = "${var.project_name}-${var.environment}-client-admin"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.client_cpu
-  memory                   = var.client_memory
-  execution_role_arn       = var.task_execution_role_arn
-  task_role_arn           = var.task_role_arn
-
-  container_definitions = templatefile("${path.module}/task-definitions/client-admin.json.tpl", {
-    name      = "client-admin"
-    image     = "${var.container_images["client-admin"]}:${var.image_tag}"
-    cpu       = var.client_cpu
-    memory    = var.client_memory
-    region    = data.aws_region.current.name
-    log_group = aws_cloudwatch_log_group.client_admin.name
-    cognito_user_pool_id = var.cognito_user_pool_id
-    cognito_app_client_id = var.cognito_app_client_id
-    alb_dns_name = var.alb_dns_name
-    project_name = var.project_name
-    environment = var.environment
-  })
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-client-admin-task"
-  }
-}
 
 # Task Definition for Client Landing
 resource "aws_ecs_task_definition" "client_landing" {
@@ -289,33 +253,6 @@ resource "aws_ecs_service" "client_app" {
   }
 }
 
-resource "aws_ecs_service" "client_admin" {
-  name            = "${var.project_name}-${var.environment}-client-admin"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.client_admin.arn
-  desired_count   = var.client_desired_count
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    security_groups  = var.security_group_ids
-    subnets          = var.private_subnet_ids
-    assign_public_ip = false
-  }
-
-  load_balancer {
-    target_group_arn = var.target_group_arns["client-admin"]
-    container_name   = "client-admin"
-    container_port   = 3001
-  }
-
-  enable_execute_command = var.enable_execute_command
-
-  depends_on = [var.target_group_arns]
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-client-admin-service"
-  }
-}
 
 resource "aws_ecs_service" "client_landing" {
   name            = "${var.project_name}-${var.environment}-client-landing"

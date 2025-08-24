@@ -108,23 +108,6 @@ services:
       nema-core:
         condition: service_healthy
 
-  client-admin:
-    build:
-      context: ./clients/client-admin
-      dockerfile: Dockerfile
-    container_name: nema-client-admin
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-      - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
-    volumes:
-      - ./clients/client-admin:/app
-      - /app/node_modules
-    depends_on:
-      nema-core:
-        condition: service_healthy
 
   client-landing:
     build:
@@ -151,7 +134,6 @@ services:
     depends_on:
       - nema-core
       - client-app
-      - client-admin
       - client-landing
     profiles: ["production"]
 

@@ -19,7 +19,6 @@ output "service_arns" {
   value = {
     nema-core       = aws_ecs_service.nema_core.id
     client-app      = aws_ecs_service.client_app.id
-    client-admin    = aws_ecs_service.client_admin.id
     client-landing  = aws_ecs_service.client_landing.id
     temporal-server = aws_ecs_service.temporal_server.id
   }
@@ -31,7 +30,6 @@ output "task_definition_arns" {
   value = {
     nema-core       = aws_ecs_task_definition.nema_core.arn
     client-app      = aws_ecs_task_definition.client_app.arn
-    client-admin    = aws_ecs_task_definition.client_admin.arn
     client-landing  = aws_ecs_task_definition.client_landing.arn
     temporal-server = aws_ecs_task_definition.temporal_server.arn
   }
@@ -43,7 +41,6 @@ output "log_groups" {
   value = {
     nema-core       = aws_cloudwatch_log_group.nema_core.name
     client-app      = aws_cloudwatch_log_group.client_app.name
-    client-admin    = aws_cloudwatch_log_group.client_admin.name
     client-landing  = aws_cloudwatch_log_group.client_landing.name
     temporal-server = aws_cloudwatch_log_group.temporal_server.name
   }

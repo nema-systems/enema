@@ -89,15 +89,6 @@ variable "target_groups" {
       health_check_matcher = "200"
       health_check_port    = "traffic-port"
     }
-    client-admin = {
-      name                 = "admin"
-      port                 = 3001
-      protocol             = "HTTP"
-      target_type          = "ip"
-      health_check_path    = "/"
-      health_check_matcher = "200"
-      health_check_port    = "traffic-port"
-    }
     client-landing = {
       name                 = "landing"
       port                 = 3002

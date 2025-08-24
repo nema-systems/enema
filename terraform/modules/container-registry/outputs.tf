@@ -33,10 +33,6 @@ output "client_app_repository_url" {
   value       = try(aws_ecr_repository.repositories["client-app"].repository_url, null)
 }
 
-output "client_admin_repository_url" {
-  description = "URL of the client-admin ECR repository"
-  value       = try(aws_ecr_repository.repositories["client-admin"].repository_url, null)
-}
 
 output "client_landing_repository_url" {
   description = "URL of the client-landing ECR repository"

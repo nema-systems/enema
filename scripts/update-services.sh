@@ -62,7 +62,6 @@ show_help() {
     echo "Available services:"
     echo "  - nema-core"
     echo "  - client-app"
-    echo "  - client-admin"
     echo "  - client-landing"
     echo "  - temporal-server"
 }
@@ -206,7 +205,7 @@ show_summary() {
 main() {
     local wait_for_stability=false
     local specific_services=()
-    local all_services=("nema-core" "client-app" "client-admin" "client-landing" "temporal-server")
+    local all_services=("nema-core" "client-app" "client-landing" "temporal-server")
     
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
