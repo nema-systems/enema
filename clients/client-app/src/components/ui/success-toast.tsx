@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/solid";
-import { CubeIcon, DocumentTextIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { CubeIcon, CubeTransparentIcon, EyeIcon } from "@heroicons/react/24/outline";
 
 interface CreatedResource {
   type: 'module' | 'req_collection';
@@ -84,7 +84,7 @@ const SuccessToast = ({
                       {resource.type === 'module' ? (
                         <CubeIcon className="h-4 w-4 mr-2 text-blue-500" />
                       ) : (
-                        <DocumentTextIcon className="h-4 w-4 mr-2 text-green-500" />
+                        <CubeTransparentIcon className="h-4 w-4 mr-2 text-green-500" />
                       )}
                       <span className="truncate">{resource.name}</span>
                     </div>

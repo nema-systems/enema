@@ -15,6 +15,7 @@ import {
   MoonIcon,
   ComputerDesktopIcon,
   CubeIcon,
+  CubeTransparentIcon,
   AdjustmentsHorizontalIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
@@ -220,7 +221,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
     {
       name: 'Req Collections',
       href: `/workspace/${navigationWorkspace.id}/req_collections`,
-      icon: FolderIcon,
+      icon: CubeTransparentIcon,
     },
     {
       name: 'Requirements',
@@ -240,7 +241,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
     {
       name: 'Files',
       href: `/workspace/${navigationWorkspace.id}/assets`,
-      icon: DocumentIcon,
+      icon: FolderIcon,
     },
   ] : [];
 

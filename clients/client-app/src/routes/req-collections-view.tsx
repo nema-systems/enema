@@ -8,7 +8,7 @@ import { setReqCollections, addReqCollection, updateReqCollection, deleteReqColl
 import { ReqCollection } from "../store/req_collections/req_collections.slice";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
-import { FolderIcon, PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { CubeTransparentIcon, PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 const ReqCollectionsView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -225,7 +225,7 @@ const ReqCollectionsView: React.FC = () => {
             </div>
           ) : filteredCollections.length === 0 ? (
             <div className="text-center py-12">
-              <FolderIcon className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
+              <CubeTransparentIcon className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                 {reqCollections.length === 0 ? "No requirement collections" : "No collections found"}
               </h3>
