@@ -207,7 +207,7 @@ async def list_releases(
             description=rel.description,
             draft=rel.draft,
             release_date=rel.release_date.isoformat() if rel.release_date else None,
-            metadata=rel.metadata,
+            metadata=rel.meta_data,
             created_at=rel.created_at.isoformat()
         ) for rel in releases
     ]
@@ -266,7 +266,7 @@ async def create_release(
         description=release_data.description,
         draft=release_data.draft,
         release_date=release_data.release_date,
-        metadata=release_data.metadata
+        meta_data=release_data.metadata
     )
     
     db.add(new_release)
@@ -290,7 +290,7 @@ async def create_release(
         description=new_release.description,
         draft=new_release.draft,
         release_date=new_release.release_date.isoformat() if new_release.release_date else None,
-        metadata=new_release.metadata,
+        metadata=new_release.meta_data,
         created_at=new_release.created_at.isoformat()
     )
     
@@ -325,7 +325,7 @@ async def get_release(
         description=release.description,
         draft=release.draft,
         release_date=release.release_date.isoformat() if release.release_date else None,
-        metadata=release.metadata,
+        metadata=release.meta_data,
         created_at=release.created_at.isoformat()
     )
     
@@ -368,7 +368,7 @@ async def update_release(
     if release_data.release_date is not None:
         release.release_date = release_data.release_date
     if release_data.metadata is not None:
-        release.metadata = release_data.metadata
+        release.meta_data = release_data.metadata
     
     await db.commit()
     await db.refresh(release)
@@ -388,7 +388,7 @@ async def update_release(
         description=release.description,
         draft=release.draft,
         release_date=release.release_date.isoformat() if release.release_date else None,
-        metadata=release.metadata,
+        metadata=release.meta_data,
         created_at=release.created_at.isoformat()
     )
     
@@ -476,7 +476,7 @@ async def publish_release(
         description=release.description,
         draft=release.draft,
         release_date=release.release_date.isoformat() if release.release_date else None,
-        metadata=release.metadata,
+        metadata=release.meta_data,
         created_at=release.created_at.isoformat()
     )
     

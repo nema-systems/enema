@@ -266,7 +266,7 @@ async def create_product(
             workspace_id=workspace_id,
             name=product_data.name,
             description=product_data.description,
-            metadata=product_data.metadata,
+            meta_data=product_data.metadata,
             create_defaults=product_data.create_defaults
         )
         

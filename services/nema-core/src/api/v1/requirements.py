@@ -395,7 +395,7 @@ async def create_requirement(
         status=new_req.status,
         rationale=new_req.rationale,
         notes=new_req.notes,
-        metadata=new_req.metadata,
+        metadata=new_req.meta_data,
         created_at=new_req.created_at.isoformat()
     )
     
@@ -439,7 +439,7 @@ async def get_requirement(
         status=requirement.status,
         rationale=requirement.rationale,
         notes=requirement.notes,
-        metadata=requirement.metadata,
+        metadata=requirement.meta_data,
         created_at=requirement.created_at.isoformat()
     )
     
@@ -489,7 +489,7 @@ async def update_requirement(
     if req_data.notes is not None:
         requirement.notes = req_data.notes
     if req_data.metadata is not None:
-        requirement.metadata = req_data.metadata
+        requirement.meta_data = req_data.metadata
     
     await db.commit()
     await db.refresh(requirement)
@@ -517,7 +517,7 @@ async def update_requirement(
         status=requirement.status,
         rationale=requirement.rationale,
         notes=requirement.notes,
-        metadata=requirement.metadata,
+        metadata=requirement.meta_data,
         created_at=requirement.created_at.isoformat()
     )
     
@@ -610,7 +610,7 @@ async def create_requirement_version(
         status=version_data.status if version_data.status is not None else latest_version.status,
         rationale=version_data.rationale if version_data.rationale is not None else latest_version.rationale,
         notes=version_data.notes if version_data.notes is not None else latest_version.notes,
-        metadata=version_data.metadata if version_data.metadata is not None else latest_version.metadata,
+        meta_data=version_data.metadata if version_data.metadata is not None else latest_version.meta_data,
         version_number=latest_version.version_number + 1
     )
     
@@ -642,7 +642,7 @@ async def create_requirement_version(
         status=new_version.status,
         rationale=new_version.rationale,
         notes=new_version.notes,
-        metadata=new_version.metadata,
+        metadata=new_version.meta_data,
         created_at=new_version.created_at.isoformat()
     )
     
