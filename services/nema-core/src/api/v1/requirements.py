@@ -213,7 +213,7 @@ async def list_requirements(
     if search:
         query = query.where(
             Req.name.ilike(f"%{search}%") | 
-            Req.definition.ilike(f"%{search}%")
+            Req.public_id.ilike(f"%{search}%")
         )
     
     # Apply sorting

@@ -16,7 +16,7 @@ import {
   selectParametersError 
 } from "../store/parameters/parameters.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
-import Modal from "../components/ui/modal";
+import ParametersModal, { ParametersFormData } from "../components/modals/parameters-modal";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 
 const ParametersView: React.FC = () => {
@@ -39,15 +39,8 @@ const ParametersView: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingParameter, setEditingParameter] = useState<any>(null);
-
-  const [newParameter, setNewParameter] = useState({
-    name: "",
-    type: "string",
-    description: "",
-    value: "",
-    group_id: "",
-    metadata: {}
-  });
+  const [isCreateLoading, setIsCreateLoading] = useState(false);
+  const [isEditLoading, setIsEditLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,26 +80,38 @@ const ParametersView: React.FC = () => {
     }
   };
 
-  const handleCreateParameter = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateParameter = async (data: ParametersFormData) => {
     if (workspaceId) {
       try {
+        setIsCreateLoading(true);
+        
+        // Parse value if it's JSON type
+        let parsedValue = data.value;
+        if (data.type === 'array' || data.type === 'object') {
+          parsedValue = JSON.parse(data.value);
+        } else if (data.type === 'number') {
+          parsedValue = Number(data.value);
+        } else if (data.type === 'boolean') {
+          parsedValue = data.value.toLowerCase() === 'true';
+        }
+        
         await dispatch(createParameter({
           workspaceId: parseInt(workspaceId),
-          parameter: newParameter
+          parameter: {
+            name: data.name,
+            type: data.type,
+            description: data.description,
+            value: parsedValue,
+            group_id: data.group_id,
+            metadata: data.metadata || {}
+          }
         })).unwrap();
         
         setIsCreateModalOpen(false);
-        setNewParameter({
-          name: "",
-          type: "string",
-          description: "",
-          value: "",
-          group_id: "",
-          metadata: {}
-        });
       } catch (error) {
         console.error("Failed to create parameter:", error);
+      } finally {
+        setIsCreateLoading(false);
       }
     }
   };
@@ -124,21 +129,32 @@ const ParametersView: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleUpdateParameter = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateParameter = async (data: ParametersFormData) => {
     if (!editingParameter || !workspaceId) return;
 
     try {
+      setIsEditLoading(true);
+      
+      // Parse value if it's JSON type
+      let parsedValue = data.value;
+      if (data.type === 'array' || data.type === 'object') {
+        parsedValue = JSON.parse(data.value);
+      } else if (data.type === 'number') {
+        parsedValue = Number(data.value);
+      } else if (data.type === 'boolean') {
+        parsedValue = data.value.toLowerCase() === 'true';
+      }
+
       await dispatch(updateParameter({
         workspaceId: parseInt(workspaceId),
         parameterId: editingParameter.id,
         updates: {
-          name: editingParameter.name,
-          type: editingParameter.type,
-          description: editingParameter.description,
-          value: editingParameter.value,
-          group_id: editingParameter.group_id,
-          metadata: editingParameter.metadata
+          name: data.name,
+          type: data.type,
+          description: data.description,
+          value: parsedValue,
+          group_id: data.group_id,
+          metadata: data.metadata || {}
         }
       })).unwrap();
       
@@ -146,6 +162,8 @@ const ParametersView: React.FC = () => {
       setEditingParameter(null);
     } catch (error) {
       console.error("Failed to update parameter:", error);
+    } finally {
+      setIsEditLoading(false);
     }
   };
 
@@ -371,202 +389,26 @@ const ParametersView: React.FC = () => {
       )}
 
       {/* Create Modal */}
-      <Modal
+      <ParametersModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Create Parameter"
-      >
-        <form onSubmit={handleCreateParameter} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={newParameter.name}
-                onChange={(e) => setNewParameter({ ...newParameter, name: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Parameter name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Type *
-              </label>
-              <select
-                required
-                value={newParameter.type}
-                onChange={(e) => setNewParameter({ ...newParameter, type: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="string">String</option>
-                <option value="number">Number</option>
-                <option value="boolean">Boolean</option>
-                <option value="array">Array</option>
-                <option value="object">Object</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Group ID
-            </label>
-            <input
-              type="text"
-              value={newParameter.group_id}
-              onChange={(e) => setNewParameter({ ...newParameter, group_id: e.target.value })}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Optional group identifier"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Value
-            </label>
-            <textarea
-              value={newParameter.value}
-              onChange={(e) => setNewParameter({ ...newParameter, value: e.target.value })}
-              rows={3}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Parameter value (JSON for arrays/objects)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Description
-            </label>
-            <textarea
-              value={newParameter.description}
-              onChange={(e) => setNewParameter({ ...newParameter, description: e.target.value })}
-              rows={3}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Parameter description (optional)"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Create Parameter
-            </button>
-          </div>
-        </form>
-      </Modal>
+        onSubmit={handleCreateParameter}
+        isLoading={isCreateLoading}
+        workspaceId={workspaceId!}
+      />
 
       {/* Edit Modal */}
-      <Modal
+      <ParametersModal
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
           setEditingParameter(null);
         }}
-        title="Edit Parameter"
-      >
-        {editingParameter && (
-          <form onSubmit={handleUpdateParameter} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editingParameter.name}
-                  onChange={(e) => setEditingParameter({ ...editingParameter, name: e.target.value })}
-                  className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Type *
-                </label>
-                <select
-                  required
-                  value={editingParameter.type}
-                  onChange={(e) => setEditingParameter({ ...editingParameter, type: e.target.value })}
-                  className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="string">String</option>
-                  <option value="number">Number</option>
-                  <option value="boolean">Boolean</option>
-                  <option value="array">Array</option>
-                  <option value="object">Object</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Group ID
-              </label>
-              <input
-                type="text"
-                value={editingParameter.group_id}
-                onChange={(e) => setEditingParameter({ ...editingParameter, group_id: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Value
-              </label>
-              <textarea
-                value={editingParameter.value}
-                onChange={(e) => setEditingParameter({ ...editingParameter, value: e.target.value })}
-                rows={3}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
-              </label>
-              <textarea
-                value={editingParameter.description}
-                onChange={(e) => setEditingParameter({ ...editingParameter, description: e.target.value })}
-                rows={3}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingParameter(null);
-                }}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Update Parameter
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
+        onSubmit={handleUpdateParameter}
+        isLoading={isEditLoading}
+        editParameter={editingParameter}
+        workspaceId={workspaceId!}
+      />
     </div>
   );
 };

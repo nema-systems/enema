@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import structlog
 
 from ...database.connection import get_db
-from ...database.models import Product, ProductModule, Module
+from ...database.models import Product, ProductModule, Module, Req, ReqCollection
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
@@ -40,6 +40,7 @@ class ModuleInfo(BaseModel):
     name: str
     description: Optional[str]
     shared: bool
+    requirement_count: Optional[int] = None
     
     class Config:
         from_attributes = True
@@ -49,6 +50,7 @@ class ReqCollectionInfo(BaseModel):
     """Basic req collection information"""
     id: int
     name: str
+    requirement_count: Optional[int] = None
     
     class Config:
         from_attributes = True
@@ -64,6 +66,8 @@ class ProductResponse(BaseModel):
     # Optional associated entities info
     base_module: Optional[ModuleInfo] = None
     req_collection: Optional[ReqCollectionInfo] = None
+    modules: List[ModuleInfo] = []
+    total_module_requirements: int = 0
     
     class Config:
         from_attributes = True
@@ -193,10 +197,46 @@ async def list_products(
                 )
             
             if details and details.req_collection:
+                # Get requirement count for this collection
+                req_count_query = select(func.count()).where(
+                    Req.req_collection_id == details.req_collection.id
+                )
+                req_count_result = await db.execute(req_count_query)
+                requirement_count = req_count_result.scalar() or 0
+                
                 req_collection = ReqCollectionInfo(
                     id=details.req_collection.id,
-                    name=details.req_collection.name
+                    name=details.req_collection.name,
+                    requirement_count=requirement_count
                 )
+            
+            # Get all modules associated with this product
+            modules_query = select(Module).join(ProductModule).where(
+                ProductModule.product_id == product.id
+            )
+            modules_result = await db.execute(modules_query)
+            product_modules = modules_result.scalars().all()
+            
+            modules = []
+            total_module_requirements = 0
+            
+            for module in product_modules:
+                # Count requirements for this module through its requirement collection
+                module_req_count_query = select(func.count()).where(
+                    Req.req_collection_id == module.req_collection_id
+                )
+                
+                module_req_result = await db.execute(module_req_count_query)
+                module_requirement_count = module_req_result.scalar() or 0
+                total_module_requirements += module_requirement_count
+                
+                modules.append(ModuleInfo(
+                    id=module.id,
+                    name=module.name,
+                    description=module.description,
+                    shared=module.shared,
+                    requirement_count=module_requirement_count
+                ))
             
             product_response = ProductResponse(
                 id=product.id,
@@ -206,7 +246,9 @@ async def list_products(
                 metadata=product.meta_data,
                 created_at=product.created_at.isoformat(),
                 base_module=base_module,
-                req_collection=req_collection
+                req_collection=req_collection,
+                modules=modules,
+                total_module_requirements=total_module_requirements
             )
             product_list.append(product_response)
             
@@ -266,7 +308,7 @@ async def create_product(
             workspace_id=workspace_id,
             name=product_data.name,
             description=product_data.description,
-            meta_data=product_data.metadata,
+            metadata=product_data.metadata,
             create_defaults=product_data.create_defaults
         )
         

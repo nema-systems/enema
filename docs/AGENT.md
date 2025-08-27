@@ -46,6 +46,7 @@ When updating data layer requirements:
 - Modules cannot be modified once created (business rule)
 - Parameters can be shared across requirement versions via junction tables
 - Modules control sharing through boolean flag
+- **Module Sharing Rule**: Only the product's default/base module should be private (shared=false); all other modules must be shared (shared=true)
 - Users are optional in some relationships (executor, creator, owner)
 - Workspace scoping must be maintained across all relationships
 - Public IDs must be unique within workspace scope

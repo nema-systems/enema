@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from "@heroicons/react/24/outline";
 import { DocumentTextIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
+import { useAuth } from "@clerk/clerk-react";
+import axios from "axios";
+import SearchableSingleSelect from "../ui/searchable-single-select";
 
 interface ReqCollection {
   id: number;
@@ -26,6 +29,7 @@ interface Requirement {
   version_number: number;
   created_at: string;
   parent_req_id?: number;
+  description?: string; // Add this for compatibility with SearchableSingleSelect
 }
 
 interface RequirementCreationModalProps {
@@ -35,7 +39,8 @@ interface RequirementCreationModalProps {
   isLoading?: boolean;
   reqCollections: ReqCollection[];
   selectedReqCollectionId?: number;
-  existingRequirements?: Requirement[];
+  workspaceId: string;
+  editRequirement?: Requirement | null;
 }
 
 export interface RequirementFormData {
@@ -92,8 +97,10 @@ const RequirementCreationModal = ({
   isLoading = false,
   reqCollections,
   selectedReqCollectionId,
-  existingRequirements = []
+  workspaceId,
+  editRequirement = null
 }: RequirementCreationModalProps) => {
+  const { getToken } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [formData, setFormData] = useState<RequirementFormData>({
     req_collection_id: selectedReqCollectionId || 0,
@@ -109,22 +116,84 @@ const RequirementCreationModal = ({
     parent_req_id: undefined,
   });
 
-  const [parentSearchTerm, setParentSearchTerm] = useState("");
-  const [showParentDropdown, setShowParentDropdown] = useState(false);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setShowParentDropdown(false);
-    };
-    
-    if (showParentDropdown) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showParentDropdown]);
+  const [selectedParentReq, setSelectedParentReq] = useState<Requirement | null>(null);
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Search function for parent requirements
+  const searchParentRequirements = async (query: string): Promise<Requirement[]> => {
+    if (!workspaceId || !formData.req_collection_id || formData.req_collection_id === 0) {
+      return [];
+    }
+
+    try {
+      const token = await getToken({ template: "default" });
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            req_collection_id: formData.req_collection_id,
+            search: query,
+            limit: 10,
+            page: 1
+          }
+        }
+      );
+      
+      const requirements = response.data.data?.items || response.data.data || [];
+      // Exclude the current requirement if editing and map to include description
+      return requirements
+        .filter((req: Requirement) => 
+          editRequirement ? req.id !== editRequirement.id : true
+        )
+        .map((req: any) => ({
+          ...req,
+          description: req.definition // Use definition as description for the search component
+        }));
+    } catch (error: any) {
+      console.error("Error searching requirements:", error);
+      return [];
+    }
+  };
+
+  // Initialize form data when editing
+  useEffect(() => {
+    if (editRequirement) {
+      setFormData({
+        req_collection_id: editRequirement.req_collection_id,
+        name: editRequirement.name,
+        definition: editRequirement.definition,
+        level: editRequirement.level,
+        priority: editRequirement.priority,
+        functional: editRequirement.functional,
+        validation_method: editRequirement.validation_method,
+        status: editRequirement.status,
+        rationale: editRequirement.rationale || "",
+        notes: editRequirement.notes || "",
+        parent_req_id: editRequirement.parent_req_id,
+      });
+      // If editing and has parent, we should load the parent requirement data
+      // For now, we'll set it to null and let the user re-select if needed
+      setSelectedParentReq(null);
+    } else {
+      setFormData({
+        req_collection_id: selectedReqCollectionId || 0,
+        name: "",
+        definition: "",
+        level: "L0",
+        priority: "medium",
+        functional: "functional",
+        validation_method: "test",
+        status: "draft",
+        rationale: "",
+        notes: "",
+        parent_req_id: undefined,
+      });
+      setSelectedParentReq(null);
+    }
+    setErrors({});
+  }, [editRequirement, selectedReqCollectionId]);
 
   // Update req_collection_id when selectedReqCollectionId changes
   useEffect(() => {
@@ -132,6 +201,14 @@ const RequirementCreationModal = ({
       setFormData(prev => ({ ...prev, req_collection_id: selectedReqCollectionId }));
     }
   }, [selectedReqCollectionId]);
+
+  // Reset parent requirement when collection changes
+  useEffect(() => {
+    if (selectedParentReq && selectedParentReq.req_collection_id !== formData.req_collection_id) {
+      setSelectedParentReq(null);
+      setFormData(prev => ({ ...prev, parent_req_id: undefined }));
+    }
+  }, [formData.req_collection_id, selectedParentReq]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,23 +253,22 @@ const RequirementCreationModal = ({
         parent_req_id: undefined,
       });
       setErrors({});
-      setParentSearchTerm("");
-      setShowParentDropdown(false);
+      setSelectedParentReq(null);
       setIsFullscreen(false);
       onClose();
     }
   };
 
   const selectedReqCollection = reqCollections.find(rc => rc.id === formData.req_collection_id);
-  const selectedParentReq = existingRequirements.find(req => req.id === formData.parent_req_id);
 
-  // Filter requirements for parent search
-  const filteredParentRequirements = existingRequirements.filter(req => 
-    req.req_collection_id === formData.req_collection_id &&
-    (req.name.toLowerCase().includes(parentSearchTerm.toLowerCase()) ||
-     req.public_id.toLowerCase().includes(parentSearchTerm.toLowerCase()) ||
-     req.definition.toLowerCase().includes(parentSearchTerm.toLowerCase()))
-  ).slice(0, 10); // Limit to 10 results
+  // Handle parent requirement selection
+  const handleParentRequirementChange = (parentReq: Requirement | null) => {
+    setSelectedParentReq(parentReq);
+    setFormData(prev => ({
+      ...prev,
+      parent_req_id: parentReq?.id || undefined
+    }));
+  };
 
   if (!isOpen) return null;
 
@@ -208,7 +284,7 @@ const RequirementCreationModal = ({
           <div className="flex items-center">
             <DocumentTextIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400 mr-3" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Create New Requirement
+              {editRequirement ? "Edit Requirement" : "Create New Requirement"}
             </h3>
           </div>
           <div className="flex items-center space-x-2">
@@ -238,6 +314,27 @@ const RequirementCreationModal = ({
         <div className="flex-1 overflow-y-auto">
           <div className={`p-6 ${isFullscreen ? 'grid grid-cols-2 gap-6' : ''}`}>
             <div className={`space-y-6 ${isFullscreen ? 'col-span-2' : ''}`}>
+              {/* Requirement Name */}
+              <div>
+                <label htmlFor="req-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Requirement Name *
+                </label>
+                <input
+                  id="req-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={isLoading}
+                  className={`w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white ${
+                    errors.name ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
+                  } disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200`}
+                  placeholder="Enter requirement name"
+                />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name}</p>
+                )}
+              </div>
+
               {/* Requirement Collection Selection */}
               <div>
                 <label htmlFor="req-collection" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -278,79 +375,17 @@ const RequirementCreationModal = ({
                   <label htmlFor="parent-req" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Parent Requirement (Optional)
                   </label>
-                  <div className="relative">
-                    <div className="relative">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        id="parent-req"
-                        type="text"
-                        value={selectedParentReq ? `${selectedParentReq.public_id} - ${selectedParentReq.name}` : parentSearchTerm}
-                        onChange={(e) => {
-                          if (!selectedParentReq) {
-                            setParentSearchTerm(e.target.value);
-                            setShowParentDropdown(true);
-                          }
-                        }}
-                        onFocus={() => !selectedParentReq && setShowParentDropdown(true)}
-                        onClick={() => {
-                          if (selectedParentReq) {
-                            setFormData({ ...formData, parent_req_id: undefined });
-                            setParentSearchTerm("");
-                            setShowParentDropdown(false);
-                          }
-                        }}
-                        disabled={isLoading}
-                        className={`w-full pl-10 pr-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white border-gray-300/50 dark:border-gray-600/50 disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200 ${
-                          selectedParentReq ? 'cursor-pointer' : ''
-                        }`}
-                        placeholder={selectedParentReq ? "Click to change parent" : "Search for parent requirement..."}
-                        readOnly={selectedParentReq ? true : false}
-                      />
-                    </div>
-                    
-                    {/* Dropdown */}
-                    {showParentDropdown && !selectedParentReq && parentSearchTerm.length >= 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {filteredParentRequirements.length === 0 ? (
-                          <div className="p-3 text-sm text-gray-500 dark:text-gray-400">
-                            {existingRequirements.length === 0 
-                              ? 'No existing requirements in this collection' 
-                              : parentSearchTerm 
-                                ? 'No matching requirements found' 
-                                : 'Start typing to search...'
-                            }
-                          </div>
-                        ) : (
-                          filteredParentRequirements.map((req) => (
-                            <button
-                              key={req.id}
-                              type="button"
-                              onClick={() => {
-                                setFormData({ ...formData, parent_req_id: req.id });
-                                setShowParentDropdown(false);
-                                setParentSearchTerm("");
-                              }}
-                              className="w-full text-left p-3 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 transition-colors border-b border-gray-100/50 dark:border-gray-700/50 last:border-b-0"
-                            >
-                              <div className="flex items-start space-x-2">
-                                <span className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-0.5">
-                                  {req.public_id}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                    {req.name}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                                    {req.definition}
-                                  </p>
-                                </div>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  
+                  <SearchableSingleSelect<Requirement>
+                    selectedItem={selectedParentReq}
+                    onSelectionChange={handleParentRequirementChange}
+                    searchFunction={searchParentRequirements}
+                    placeholder="Search for parent requirement..."
+                    noResultsText="No matching requirements found"
+                    loadingText="Searching requirements..."
+                    disabled={isLoading}
+                    className="w-full"
+                  />
                   
                   {selectedParentReq && (
                     <div className="mt-2 p-3 bg-green-50/70 dark:bg-green-900/30 backdrop-blur border border-green-200/40 dark:border-green-800/40 rounded-lg">
@@ -367,35 +402,8 @@ const RequirementCreationModal = ({
                       </div>
                     </div>
                   )}
-                  
-                  <div className="mt-2 p-3 bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur border border-blue-200/40 dark:border-blue-800/40 rounded-lg">
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      <span className="font-medium">💡 Tree Structure:</span> Link this requirement to a parent to create hierarchical relationships. This helps organize requirements into logical groupings and dependencies.
-                    </p>
-                  </div>
                 </div>
               )}
-
-              {/* Requirement Name */}
-              <div>
-                <label htmlFor="req-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Requirement Name *
-                </label>
-                <input
-                  id="req-name"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  disabled={isLoading}
-                  className={`w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white ${
-                    errors.name ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
-                  } disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200`}
-                  placeholder="Enter requirement name"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name}</p>
-                )}
-              </div>
 
               {/* Requirement Definition */}
               <div>
@@ -575,7 +583,7 @@ const RequirementCreationModal = ({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 )}
-                Create Requirement
+                {editRequirement ? "Save Changes" : "Create Requirement"}
               </button>
             </div>
           </form>

@@ -410,7 +410,8 @@ const CollectionDetailView: React.FC = () => {
         isLoading={isCreating}
         reqCollections={collection ? [collection] : []}
         selectedReqCollectionId={collection?.id}
-        existingRequirements={requirements}
+        workspaceId={workspaceId!}
+        editRequirement={null}
       />
 
       {/* Success Toast */}

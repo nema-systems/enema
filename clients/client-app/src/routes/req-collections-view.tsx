@@ -9,6 +9,8 @@ import { ReqCollection } from "../store/req_collections/req_collections.slice";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 import { CubeTransparentIcon, PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import DeleteReqCollectionModal from "../components/modals/delete-req-collection-modal";
+import ReqCollectionModal, { ReqCollectionFormData } from "../components/modals/req-collection-modal";
 
 const ReqCollectionsView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -23,11 +25,12 @@ const ReqCollectionsView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "created_at">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<ReqCollection | null>(null);
-  const [newCollection, setNewCollection] = useState({
-    name: "",
-  });
+  const [deletingCollection, setDeletingCollection] = useState<ReqCollection | null>(null);
+  const [requirements, setRequirements] = useState<any[]>([]);
+  const [isDeletingCollection, setIsDeletingCollection] = useState(false);
+  const [isSubmittingModal, setIsSubmittingModal] = useState(false);
 
   const getBgColorFromId = (id: number) => {
     const colors = [
@@ -67,68 +70,108 @@ const ReqCollectionsView: React.FC = () => {
     }
   };
 
-  const createReqCollection = async () => {
-    if (!workspaceId || !newCollection.name.trim()) return;
-    
-    try {
-      const token = await getToken({ template: "default" });
-      const response = await axios.post(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
-        {
-          name: newCollection.name.trim(),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      
-      dispatch(addReqCollection(response.data.data));
-      setNewCollection({ name: "" });
-      setIsCreateModalOpen(false);
-    } catch (err: any) {
-      console.error("Error creating requirement collection:", err);
-      dispatch(setError(err.response?.data?.message || "Failed to create requirement collection"));
-    }
-  };
-
-  const updateReqCollectionData = async (collectionId: number, data: Partial<ReqCollection>) => {
+  const fetchRequirements = async () => {
     if (!workspaceId) return;
     
     try {
       const token = await getToken({ template: "default" });
-      const response = await axios.put(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${collectionId}`,
-        data,
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       
-      dispatch(updateReqCollection(response.data.data));
-      setEditingCollection(null);
+      setRequirements(response.data.data?.items || response.data.data || []);
     } catch (err: any) {
-      console.error("Error updating requirement collection:", err);
-      dispatch(setError(err.response?.data?.message || "Failed to update requirement collection"));
+      console.error("Error fetching requirements:", err);
     }
   };
 
-  const deleteReqCollectionData = async (collectionId: number) => {
-    if (!workspaceId || !confirm("Are you sure you want to delete this requirement collection?")) return;
+  const handleModalSubmit = async (formData: ReqCollectionFormData) => {
+    if (!workspaceId) return;
     
     try {
+      setIsSubmittingModal(true);
+      const token = await getToken({ template: "default" });
+      
+      if (editingCollection) {
+        // Update existing collection
+        const response = await axios.put(
+          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${editingCollection.id}`,
+          {
+            name: formData.name.trim(),
+            metadata: formData.metadata,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        
+        dispatch(updateReqCollection(response.data.data));
+      } else {
+        // Create new collection
+        const response = await axios.post(
+          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
+          {
+            name: formData.name.trim(),
+            metadata: formData.metadata,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        
+        dispatch(addReqCollection(response.data.data));
+      }
+      
+      setIsModalOpen(false);
+      setEditingCollection(null);
+    } catch (err: any) {
+      console.error("Error saving requirement collection:", err);
+      dispatch(setError(err.response?.data?.message || "Failed to save requirement collection"));
+    } finally {
+      setIsSubmittingModal(false);
+    }
+  };
+
+
+  const deleteReqCollectionData = async () => {
+    if (!workspaceId || !deletingCollection) return;
+    
+    try {
+      setIsDeletingCollection(true);
       const token = await getToken({ template: "default" });
       await axios.delete(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${collectionId}`,
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${deletingCollection.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       
-      dispatch(deleteReqCollection(collectionId));
+      dispatch(deleteReqCollection(deletingCollection.id));
+      setDeletingCollection(null);
     } catch (err: any) {
       console.error("Error deleting requirement collection:", err);
       dispatch(setError(err.response?.data?.message || "Failed to delete requirement collection"));
+    } finally {
+      setIsDeletingCollection(false);
     }
+  };
+
+  const handleCreateCollection = () => {
+    setEditingCollection(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditCollection = (collection: ReqCollection) => {
+    setEditingCollection(collection);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingCollection(null);
   };
 
   const handleCollectionClick = (collection: ReqCollection) => {
@@ -137,7 +180,13 @@ const ReqCollectionsView: React.FC = () => {
 
   useEffect(() => {
     fetchReqCollections();
+    fetchRequirements();
   }, [workspaceId]);
+
+  // Helper function to get requirement count for a collection
+  const getRequirementCount = (collectionId: number) => {
+    return requirements.filter(req => req.req_collection_id === collectionId).length;
+  };
 
   // Filter and sort collections
   const filteredCollections = reqCollections
@@ -163,7 +212,7 @@ const ReqCollectionsView: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">Manage workspace requirement collections</p>
         </div>
         <button
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={handleCreateCollection}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           <PlusIcon className="h-4 w-4 mr-2" />
@@ -237,7 +286,7 @@ const ReqCollectionsView: React.FC = () => {
               </p>
               {reqCollections.length === 0 && (
                 <button
-                  onClick={() => setIsCreateModalOpen(true)}
+                  onClick={handleCreateCollection}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
@@ -264,7 +313,7 @@ const ReqCollectionsView: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setEditingCollection(collection);
+                              handleEditCollection(collection);
                             }}
                             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                             title="Edit collection"
@@ -274,7 +323,7 @@ const ReqCollectionsView: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteReqCollectionData(collection.id);
+                              setDeletingCollection(collection);
                             }}
                             className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                             title="Delete collection"
@@ -283,9 +332,14 @@ const ReqCollectionsView: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <p className="text-gray-400 dark:text-gray-500 text-xs">
-                        Created: {new Date(collection.created_at).toLocaleDateString()}
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-gray-400 dark:text-gray-500 text-xs">
+                          Created: {new Date(collection.created_at).toLocaleDateString()}
+                        </p>
+                        <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-full">
+                          {getRequirementCount(collection.id)} requirements
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -295,110 +349,24 @@ const ReqCollectionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Create Collection Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setIsCreateModalOpen(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div className="mb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
-                  Create New Requirement Collection
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Create a container to organize requirements that modules can reference.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="collection-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    id="collection-name"
-                    type="text"
-                    value={newCollection.name}
-                    onChange={(e) => setNewCollection(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="e.g., Safety Requirements, API Specifications"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCreateModalOpen(false);
-                    setNewCollection({ name: "" });
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={createReqCollection}
-                  disabled={!newCollection.name.trim()}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Create Collection
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Unified Create/Edit Collection Modal */}
+      <ReqCollectionModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSubmit={handleModalSubmit}
+        isLoading={isSubmittingModal}
+        editReqCollection={editingCollection}
+      />
 
-      {/* Edit Collection Modal */}
-      {editingCollection && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setEditingCollection(null)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div className="mb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
-                  Edit Requirement Collection
-                </h3>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="edit-collection-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    id="edit-collection-name"
-                    type="text"
-                    value={editingCollection.name}
-                    onChange={(e) => setEditingCollection(prev => prev ? { ...prev, name: e.target.value } : null)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingCollection(null)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateReqCollectionData(editingCollection.id, {
-                    name: editingCollection.name.trim(),
-                  })}
-                  disabled={!editingCollection.name.trim()}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Collection Modal */}
+      <DeleteReqCollectionModal
+        isOpen={!!deletingCollection}
+        onClose={() => setDeletingCollection(null)}
+        onConfirm={deleteReqCollectionData}
+        reqCollection={deletingCollection}
+        requirements={requirements}
+        isLoading={isDeletingCollection}
+      />
     </div>
   );
 };

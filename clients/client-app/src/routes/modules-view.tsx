@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import axios from "axios";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
@@ -15,14 +15,16 @@ const ModulesView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const modules = useAppSelector(selectModules);
   const loading = useAppSelector(selectModulesLoading);
   const error = useAppSelector(selectModulesError);
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "created_at">("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState<"name" | "created_at">(searchParams.get('sortBy') as "name" | "created_at" || "created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(searchParams.get('sortOrder') as "asc" | "desc" || "desc");
+  const [productFilter, setProductFilter] = useState<string>(searchParams.get('product') || "all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -32,6 +34,9 @@ const ModulesView: React.FC = () => {
     name: "",
     description: "",
   });
+  
+  // Product data for filtering
+  const [products, setProducts] = useState<any[]>([]);
 
   const getBgColorFromId = (id: number) => {
     const colors = [
@@ -54,10 +59,19 @@ const ModulesView: React.FC = () => {
       dispatch(setLoading(true));
       const token = await getToken({ template: "default" });
       
+      // Build query params
+      const params: any = {};
+      if (productFilter !== "all") {
+        params.product_id = productFilter;
+      } else {
+        params.shared = true; // Only show shared modules when not filtering by product
+      }
+      
       const response = await axios.get(
         `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules`,
         {
           headers: { Authorization: `Bearer ${token}` },
+          params
         }
       );
       
@@ -186,16 +200,59 @@ const ModulesView: React.FC = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    if (!workspaceId) return;
+    
+    try {
+      const token = await getToken({ template: "default" });
+      const response = await axios.get(
+        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setProducts(response.data.data?.items || response.data.data || []);
+    } catch (err: any) {
+      console.error("Error fetching products:", err);
+    }
+  };
+  
   useEffect(() => {
     fetchModules();
+    fetchProducts();
   }, [workspaceId]);
+  
+  // Refetch modules when product filter changes
+  useEffect(() => {
+    fetchModules();
+  }, [productFilter]);
 
-  // Filter and sort modules
+  // Update URL when filters change
+  const updateSearchParams = (newFilters: { [key: string]: string }) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if ((value === "all" && key === "product") || 
+          (value === "created_at" && key === "sortBy") || 
+          (value === "desc" && key === "sortOrder")) {
+        newSearchParams.delete(key);
+      } else {
+        newSearchParams.set(key, value);
+      }
+    });
+    
+    setSearchParams(newSearchParams);
+  };
+  
+  // Filter and sort modules (filtering by product is now done server-side)
   const filteredModules = modules
-    .filter(module =>
-      module.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      module.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(module => {
+      // Search filter
+      const matchesSearch = module.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        module.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesSearch;
+    })
     .sort((a, b) => {
       const aVal = sortBy === "name" ? a.name : new Date(a.created_at).getTime();
       const bVal = sortBy === "name" ? b.name : new Date(b.created_at).getTime();
@@ -213,8 +270,15 @@ const ModulesView: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Modules</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your system modules</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {productFilter === "all" ? "Modules" : "Modules"}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {productFilter === "all" 
+              ? "Manage your system modules"
+              : `Showing modules for: ${products.find(p => p.id.toString() === productFilter)?.name || 'Selected Product'}`
+            }
+          </p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
@@ -238,8 +302,28 @@ const ModulesView: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <select
+            value={productFilter}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setProductFilter(newValue);
+              updateSearchParams({ product: newValue });
+            }}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Shared Modules</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id.toString()}>
+                {product.name} - All Associated Modules
+              </option>
+            ))}
+          </select>
+          <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "name" | "created_at")}
+            onChange={(e) => {
+              const newValue = e.target.value as "name" | "created_at";
+              setSortBy(newValue);
+              updateSearchParams({ sortBy: newValue });
+            }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
           >
             <option value="created_at">Sort by Date</option>
@@ -247,7 +331,11 @@ const ModulesView: React.FC = () => {
           </select>
           <select
             value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+            onChange={(e) => {
+              const newValue = e.target.value as "asc" | "desc";
+              setSortOrder(newValue);
+              updateSearchParams({ sortOrder: newValue });
+            }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
           >
             <option value="desc">Newest First</option>
@@ -260,7 +348,10 @@ const ModulesView: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-            Modules ({modules.length})
+            {productFilter === "all" 
+              ? `Shared Modules (${modules.length})` 
+              : `Modules for ${products.find(p => p.id.toString() === productFilter)?.name || 'Product'} (${modules.length})`
+            }
           </h2>
         </div>
 
@@ -325,27 +416,16 @@ const ModulesView: React.FC = () => {
                           >
                             <PencilIcon className="h-4 w-4" />
                           </button>
-                          {/* Only show delete button for shared modules (shared=true) */}
-                          {module.shared && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteModuleData(module.id);
-                              }}
-                              className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                              title="Delete module"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                          {!module.shared && (
-                            <div 
-                              className="p-1 text-gray-300 dark:text-gray-600"
-                              title="Base modules cannot be deleted"
-                            >
-                              <TrashIcon className="h-4 w-4 opacity-30" />
-                            </div>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteModuleData(module.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                            title="Delete module"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                       {module.description && (

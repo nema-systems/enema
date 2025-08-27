@@ -14,7 +14,7 @@ import {
   selectTestCasesError 
 } from "../store/testcases/testcases.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
-import Modal from "../components/ui/modal";
+import TestCasesModal, { TestCasesFormData } from "../components/modals/test-cases-modal";
 
 const TestCasesView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -35,19 +35,15 @@ const TestCasesView: React.FC = () => {
 
   // Modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newTestCase, setNewTestCase] = useState({
-    name: "",
-    test_method: "manual",
-    expected_results: "",
-    execution_mode: "interactive",
-    notes: "",
-    metadata: {}
-  });
+  const [isCreateLoading, setIsCreateLoading] = useState(false);
+  const [requirements, setRequirements] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       if (workspaceId) {
         const token = await getToken({ template: "default" });
+        
+        // Fetch test cases
         dispatch(fetchTestCases({ 
           workspaceId: parseInt(workspaceId),
           token: token!,
@@ -55,6 +51,21 @@ const TestCasesView: React.FC = () => {
           sort: sortBy,
           order: sortOrder
         }));
+
+        // Fetch requirements for assignment
+        try {
+          const response = await fetch(`http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setRequirements(data.data?.items || []);
+          }
+        } catch (error) {
+          console.error('Failed to fetch requirements:', error);
+        }
       }
     };
     fetchData();
@@ -80,26 +91,23 @@ const TestCasesView: React.FC = () => {
     }
   };
 
-  const handleCreateTestCase = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateTestCase = async (data: TestCasesFormData) => {
     if (workspaceId) {
       try {
+        setIsCreateLoading(true);
         await dispatch(createTestCase({
           workspaceId: parseInt(workspaceId),
-          testcase: newTestCase
+          testcase: {
+            ...data,
+            metadata: {}
+          }
         })).unwrap();
         
         setIsCreateModalOpen(false);
-        setNewTestCase({
-          name: "",
-          test_method: "manual",
-          expected_results: "",
-          execution_mode: "interactive",
-          notes: "",
-          metadata: {}
-        });
       } catch (error) {
         console.error("Failed to create test case:", error);
+      } finally {
+        setIsCreateLoading(false);
       }
     }
   };
@@ -298,103 +306,13 @@ const TestCasesView: React.FC = () => {
         </div>
       )}
 
-      <Modal
+      <TestCasesModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Create Test Case"
-      >
-        <form onSubmit={handleCreateTestCase} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={newTestCase.name}
-              onChange={(e) => setNewTestCase({ ...newTestCase, name: e.target.value })}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter test case name"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Test Method *
-              </label>
-              <select
-                required
-                value={newTestCase.test_method}
-                onChange={(e) => setNewTestCase({ ...newTestCase, test_method: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="manual">Manual</option>
-                <option value="automated">Automated</option>
-                <option value="hybrid">Hybrid</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Execution Mode *
-              </label>
-              <select
-                required
-                value={newTestCase.execution_mode}
-                onChange={(e) => setNewTestCase({ ...newTestCase, execution_mode: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="interactive">Interactive</option>
-                <option value="batch">Batch</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Expected Results *
-            </label>
-            <textarea
-              required
-              value={newTestCase.expected_results}
-              onChange={(e) => setNewTestCase({ ...newTestCase, expected_results: e.target.value })}
-              rows={3}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Describe the expected results"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Notes
-            </label>
-            <textarea
-              value={newTestCase.notes}
-              onChange={(e) => setNewTestCase({ ...newTestCase, notes: e.target.value })}
-              rows={3}
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Additional notes (optional)"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-[#001447] via-[#0a2060] to-[#182a7e] hover:from-[#0a225f] hover:via-[#162f7e] hover:to-[#243391] text-white rounded-lg font-medium transition-all duration-300"
-            >
-              Create Test Case
-            </button>
-          </div>
-        </form>
-      </Modal>
+        onSubmit={handleCreateTestCase}
+        isLoading={isCreateLoading}
+        existingRequirements={requirements}
+      />
     </div>
   );
 };

@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, delete
 from typing import List, Optional
 from pydantic import BaseModel
 import structlog
 
 from ...database.connection import get_db
-from ...database.models import ReqCollection
+from ...database.models import ReqCollection, Req, Module
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
@@ -284,13 +284,34 @@ async def delete_req_collection(
     workspace = Depends(validate_workspace_access),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete requirement tree"""
+    """Delete requirement collection and all related requirements"""
     
     req_collection = await get_req_collection_in_workspace(workspace_id, req_collection_id, db)
     
-    await db.delete(req_collection)
-    await db.commit()
-    
-    logger.info("Requirement tree deleted", 
-                req_collection_id=req_collection_id,
-                workspace_id=workspace_id)
+    try:
+        # Delete all requirements in this collection first (CASCADE should handle this, but let's be explicit)
+        delete_reqs_stmt = delete(Req).where(Req.req_collection_id == req_collection_id)
+        await db.execute(delete_reqs_stmt)
+        
+        # Delete all modules that reference this collection
+        delete_modules_stmt = delete(Module).where(Module.req_collection_id == req_collection_id) 
+        await db.execute(delete_modules_stmt)
+        
+        # Now delete the collection itself
+        db.delete(req_collection)
+        await db.commit()
+        
+        logger.info("Requirement collection deleted", 
+                    req_collection_id=req_collection_id,
+                    workspace_id=workspace_id)
+                    
+    except Exception as e:
+        await db.rollback()
+        logger.error("Failed to delete requirement collection",
+                    req_collection_id=req_collection_id,
+                    workspace_id=workspace_id,
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete requirement collection"
+        )

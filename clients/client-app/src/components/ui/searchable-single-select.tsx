@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { CheckIcon } from "@heroicons/react/24/solid";
 
 export interface SelectableItem {
   id: number;
   name: string;
   description?: string;
+  public_id?: string;
 }
 
-interface SearchableMultiSelectProps<T extends SelectableItem> {
-  selectedItems: T[];
-  onSelectionChange: (items: T[]) => void;
+interface SearchableSingleSelectProps<T extends SelectableItem> {
+  selectedItem: T | null;
+  onSelectionChange: (item: T | null) => void;
   searchFunction: (query: string) => Promise<T[]>;
   placeholder?: string;
   noResultsText?: string;
@@ -19,19 +19,21 @@ interface SearchableMultiSelectProps<T extends SelectableItem> {
   className?: string;
   disabled?: boolean;
   maxHeight?: string;
+  clearable?: boolean;
 }
 
-const SearchableMultiSelect = <T extends SelectableItem>({
-  selectedItems,
+const SearchableSingleSelect = <T extends SelectableItem>({
+  selectedItem,
   onSelectionChange,
   searchFunction,
-  placeholder = "Search and select items...",
+  placeholder = "Search and select an item...",
   noResultsText = "No items found",
   loadingText = "Searching...",
   className = "",
   disabled = false,
-  maxHeight = "max-h-48"
-}: SearchableMultiSelectProps<T>) => {
+  maxHeight = "max-h-48",
+  clearable = true
+}: SearchableSingleSelectProps<T>) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -96,14 +98,16 @@ const SearchableMultiSelect = <T extends SelectableItem>({
           return; // Don't close if clicking inside dropdown
         }
         setIsOpen(false);
-        setSearchQuery("");
+        if (!selectedItem) {
+          setSearchQuery("");
+        }
         setSearchResults([]);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [selectedItem]);
 
   // Update position when dropdown opens or window resizes
   useEffect(() => {
@@ -123,31 +127,34 @@ const SearchableMultiSelect = <T extends SelectableItem>({
     }
   }, [isOpen]);
 
-  const handleItemToggle = (item: T) => {
-    const isSelected = selectedItems.some(selected => selected.id === item.id);
-    
-    if (isSelected) {
-      // Remove item
-      const newSelection = selectedItems.filter(selected => selected.id !== item.id);
-      onSelectionChange(newSelection);
-    } else {
-      // Add item
-      const newSelection = [...selectedItems, item];
-      onSelectionChange(newSelection);
+  const handleItemSelect = (item: T) => {
+    onSelectionChange(item);
+    setIsOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleClear = () => {
+    onSelectionChange(null);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const getDisplayValue = () => {
+    if (selectedItem) {
+      return selectedItem.public_id 
+        ? `${selectedItem.public_id} - ${selectedItem.name}` 
+        : selectedItem.name;
     }
+    return searchQuery;
   };
 
-  const handleRemoveItem = (itemId: number) => {
-    onSelectionChange(selectedItems.filter(selected => selected.id !== itemId));
+  const getPlaceholderText = () => {
+    if (selectedItem) {
+      return clearable ? "Click to change selection" : "Selected item";
+    }
+    return placeholder;
   };
-
-  const isItemSelected = (item: T) => {
-    return selectedItems.some(selected => selected.id === item.id);
-  };
-
-  const filteredResults = searchResults.filter(
-    result => !selectedItems.some(selected => selected.id === result.id)
-  );
 
   const renderDropdown = () => {
     if (!isOpen) return null;
@@ -169,41 +176,41 @@ const SearchableMultiSelect = <T extends SelectableItem>({
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
               {loadingText}
             </div>
-          ) : filteredResults.length === 0 && searchQuery.trim() ? (
+          ) : searchResults.length === 0 && searchQuery.trim() ? (
             <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
               {noResultsText}
             </div>
-          ) : filteredResults.length === 0 && !searchQuery.trim() ? (
+          ) : searchResults.length === 0 && !searchQuery.trim() ? (
             <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
               Start typing to search...
             </div>
           ) : (
-            filteredResults.map((item) => (
+            searchResults.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleItemToggle(item);
+                  handleItemSelect(item);
                 }}
-                className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700/50 flex items-start justify-between group transition-colors duration-150"
+                className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700/50 flex items-start justify-between group transition-colors duration-150 border-b border-gray-100/50 dark:border-gray-700/50 last:border-b-0"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-white text-sm truncate">
-                    {item.name}
+                  <div className="flex items-center space-x-2">
+                    {item.public_id && (
+                      <span className="text-xs font-mono text-gray-500 dark:text-gray-400 flex-shrink-0">
+                        {item.public_id}
+                      </span>
+                    )}
+                    <div className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                      {item.name}
+                    </div>
                   </div>
                   {item.description && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
                       {item.description}
                     </div>
-                  )}
-                </div>
-                <div className="ml-2 flex-shrink-0">
-                  {isItemSelected(item) ? (
-                    <CheckIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  ) : (
-                    <div className="h-4 w-4 border border-gray-300 dark:border-gray-600 rounded group-hover:border-indigo-500 transition-colors duration-150"></div>
                   )}
                 </div>
               </button>
@@ -217,28 +224,6 @@ const SearchableMultiSelect = <T extends SelectableItem>({
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      {/* Selected Items Tags */}
-      {selectedItems.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {selectedItems.map((item) => (
-            <div
-              key={item.id}
-              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
-            >
-              <span className="mr-1">{item.name}</span>
-              <button
-                type="button"
-                onClick={() => handleRemoveItem(item.id)}
-                disabled={disabled}
-                className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/50 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                <XMarkIcon className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Search Input */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -247,29 +232,57 @@ const SearchableMultiSelect = <T extends SelectableItem>({
         <input
           ref={inputRef}
           type="text"
-          value={searchQuery}
+          value={getDisplayValue()}
           onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setIsOpen(true);
+            if (!selectedItem) {
+              setSearchQuery(e.target.value);
+              setIsOpen(true);
+            }
           }}
           onFocus={() => {
-            setIsOpen(true);
-            updateDropdownPosition();
-            if (searchQuery.trim()) {
-              // Re-trigger search if there's already a query
-              setDebouncedQuery(searchQuery);
+            if (!selectedItem) {
+              setIsOpen(true);
+              updateDropdownPosition();
+              if (searchQuery.trim()) {
+                setDebouncedQuery(searchQuery);
+              }
+            }
+          }}
+          onClick={() => {
+            if (selectedItem && clearable) {
+              handleClear();
+              setIsOpen(true);
+            } else if (!selectedItem) {
+              setIsOpen(true);
+              updateDropdownPosition();
             }
           }}
           disabled={disabled}
-          className="w-full pl-10 pr-10 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-300/50 dark:border-gray-600/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200"
-          placeholder={placeholder}
+          readOnly={!!selectedItem}
+          className={`w-full pl-10 pr-10 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-300/50 dark:border-gray-600/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200 ${
+            selectedItem ? 'cursor-pointer' : ''
+          }`}
+          placeholder={getPlaceholderText()}
         />
         <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-          <ChevronDownIcon 
-            className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-              isOpen ? 'transform rotate-180' : ''
-            }`} 
-          />
+          {selectedItem && clearable ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClear();
+              }}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          ) : (
+            <ChevronDownIcon 
+              className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                isOpen ? 'transform rotate-180' : ''
+              }`} 
+            />
+          )}
         </div>
       </div>
 
@@ -279,4 +292,4 @@ const SearchableMultiSelect = <T extends SelectableItem>({
   );
 };
 
-export default SearchableMultiSelect;
+export default SearchableSingleSelect;

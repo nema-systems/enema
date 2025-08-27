@@ -9,6 +9,7 @@ import AssetsView from "./assets-view";
 import RequirementDetail from "./requirement-detail";
 import ReqCollectionsView from "./req-collections-view";
 import CollectionDetailView from "./collection-detail-view";
+import AgentView from "./agent-view";
 import ApplicationShell from "../components/application-shell";
 import NemaLogo from "../icons/nema-logo";
 
@@ -25,6 +26,7 @@ const LoggedInMainRouter = () => {
         <Route path="/workspace/:workspaceId/parameters" element={<ParametersView />} />
         <Route path="/workspace/:workspaceId/testcases" element={<TestCasesView />} />
         <Route path="/workspace/:workspaceId/assets" element={<AssetsView />} />
+        <Route path="/workspace/:workspaceId/agent" element={<AgentView />} />
         <Route path="/workspace/:workspaceId/requirements/:requirementId" element={<RequirementDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -71,7 +71,9 @@
 - **Parameter Sharing Constraint**: Parameters can be shared across multiple requirement versions via junction table
 - **Parameter Independence**: Parameters exist independently of any specific requirement version
 - **Module Sharing**: Modules with shared=true can be referenced by multiple products
-- **Module Ownership**: Each product has dedicated non-shared modules for product-specific views
+- **Default Module Rule**: Each product automatically gets a base/default module (shared=false) for product-specific requirements
+- **System Module Rule**: All modules not created as the product's default module must be shared (shared=true) to enable reuse across products
+- **Module Ownership**: Each product has exactly one dedicated non-shared module (the default/base module) for product-specific views
 - **ReqCollection Membership**: Each requirement belongs to exactly one ReqCollection (1:N relationship)
 - **Product Independence**: Products access ReqCollections only through modules, not directly
 - **No Direct Abstract Storage**: Abstract status is never stored directly but always computed from parameter alternatives

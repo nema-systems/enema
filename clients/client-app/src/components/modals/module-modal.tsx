@@ -24,10 +24,10 @@ interface Module {
   workspace_id: number;
   req_collection_id: number;
   name: string;
-  description: string | null;
-  rules: string | null;
+  description?: string;
+  rules?: string;
   shared: boolean;
-  metadata: any;
+  metadata?: any;
   created_at: string;
 }
 
@@ -99,7 +99,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
         }
       );
       
-      // Get all modules to find which req collections are used by base modules (shared=false)
+      // Get all modules to find which req collections are already used
       const modulesResponse = await axios.get(
         `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules`,
         {
@@ -110,13 +110,11 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
       const allCollections = collectionsResponse.data.data?.items || [];
       const allModules = modulesResponse.data.data?.items || [];
       
-      // Filter out req collections that are used by base modules (shared=false)
-      const usedByBaseModules = allModules
-        .filter((module: any) => !module.shared) // Base modules have shared=false
-        .map((module: any) => module.req_collection_id);
+      // Filter out req collections that are already used by existing modules
+      const usedCollections = allModules.map((module: any) => module.req_collection_id);
       
       const availableCollections = allCollections.filter(
-        (collection: ReqCollection) => !usedByBaseModules.includes(collection.id)
+        (collection: ReqCollection) => !usedCollections.includes(collection.id)
       );
       
       setAvailableCollections(availableCollections);
@@ -275,19 +273,6 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
                 />
               </div>
 
-              {/* Info about shared modules */}
-              <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur border border-blue-200/40 dark:border-blue-800/40 rounded-lg p-4">
-                <div className="flex items-start">
-                  <div className="ml-0 text-sm">
-                    <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">
-                      📋 Shared Module
-                    </p>
-                    <p className="text-blue-700 dark:text-blue-300">
-                      All manually created modules are shared and can be reused across multiple products. Base modules are only created automatically through product setup.
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               {/* Requirements Collection Setup - only show for new modules */}
               {!editModule && (
@@ -363,7 +348,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
                         Use existing requirements collection
                       </label>
                       <p className="text-green-700 dark:text-green-300">
-                        Select from available collections (excludes product base collections)
+                        Select from available collections (excludes collections already in use)
                       </p>
                     </div>
                   </div>
@@ -398,7 +383,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
                           </select>
                           {availableCollections.length === 0 && (
                             <p className="mt-1 text-sm text-orange-600 dark:text-orange-400">
-                              No available collections. All existing collections are used by product base modules.
+                              No available collections. All existing collections are already in use by other modules.
                             </p>
                           )}
                           {errors.req_collection && (

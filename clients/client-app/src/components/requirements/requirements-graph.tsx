@@ -14,6 +14,7 @@ import {
   Handle,
   Position,
 } from 'reactflow';
+import dagre from 'dagre';
 
 import 'reactflow/dist/style.css';
 
@@ -69,7 +70,7 @@ const RequirementNode = ({ data }: { data: any }) => {
   };
 
   return (
-    <div className={`px-4 py-3 shadow-lg rounded-lg border-2 ${getNodeColor(data.priority)} dark:border-opacity-50 min-w-[200px] max-w-[300px]`}>
+    <div className={`px-4 py-3 shadow-lg rounded-lg border-2 ${getNodeColor(data.priority)} dark:border-opacity-50`} style={{ width: 280, minHeight: 120 }}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
           <div className={`w-3 h-3 rounded-full ${getStatusIndicatorColor(data.status)}`} />
@@ -105,8 +106,8 @@ const RequirementNode = ({ data }: { data: any }) => {
         </span>
       </div>
 
-      <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-gray-400" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-gray-400" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-gray-400" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-gray-400" />
     </div>
   );
 };
@@ -143,77 +144,143 @@ const RequirementsGraph: React.FC<RequirementsGraphProps> = ({
   requirements, 
   className = '' 
 }) => {
-  // Convert requirements to nodes and edges
+  // Convert requirements to nodes and edges using Dagre layout
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
+    if (requirements.length === 0) return { nodes: [], edges: [] };
+
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
+    
+    // Set graph direction and spacing
+    dagreGraph.setGraph({ 
+      rankdir: 'LR', // Left to Right
+      nodesep: 30,   // Space between nodes in same rank
+      ranksep: 300,  // Space between ranks (levels)
+      marginx: 20,
+      marginy: 20
+    });
+
     const nodes: Node[] = [];
     const edges: Edge[] = [];
+    const nodeWidth = 280;
+    const nodeHeight = 120;
 
-    // Create nodes for each requirement
-    requirements.forEach((req, index) => {
-      // Simple grid layout - can be improved with more sophisticated algorithms
-      const x = (index % 4) * 350;
-      const y = Math.floor(index / 4) * 200;
+    // Create a mapping for level to rank to ensure proper column ordering
+    const levelToRank = new Map();
+    const levels = [...new Set(requirements.map(req => req.level))].sort();
+    levels.forEach((level, index) => {
+      levelToRank.set(level, index);
+    });
 
+    // Add nodes to dagre graph and force them into level-based positions
+    requirements.forEach((req) => {
+      dagreGraph.setNode(req.id.toString(), { 
+        width: nodeWidth, 
+        height: nodeHeight
+      });
+    });
+
+    // Create edges based on parent_req_id relationships
+    const requirementMap = new Map(requirements.map(req => [req.id, req]));
+    
+    requirements.forEach((req) => {
+      if (req.parent_req_id && requirementMap.has(req.parent_req_id)) {
+        dagreGraph.setEdge(req.parent_req_id.toString(), req.id.toString());
+        
+        edges.push({
+          id: `e${req.parent_req_id}-${req.id}`,
+          source: req.parent_req_id.toString(),
+          target: req.id.toString(),
+          type: 'smoothstep',
+          animated: false,
+          style: {
+            stroke: '#6366f1',
+            strokeWidth: 2,
+          },
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 20,
+            height: 20,
+            color: '#6366f1',
+          },
+        });
+      }
+    });
+
+    // If no parent relationships exist, create connections between consecutive levels for demonstration
+    if (edges.length === 0 && levels.length > 1) {
+      for (let i = 0; i < levels.length - 1; i++) {
+        const currentLevelReqs = requirements.filter(req => req.level === levels[i]);
+        const nextLevelReqs = requirements.filter(req => req.level === levels[i + 1]);
+        
+        if (currentLevelReqs.length > 0 && nextLevelReqs.length > 0) {
+          // Connect first node of current level to first node of next level
+          const sourceReq = currentLevelReqs[0];
+          const targetReq = nextLevelReqs[0];
+          
+          dagreGraph.setEdge(sourceReq.id.toString(), targetReq.id.toString());
+          
+          edges.push({
+            id: `demo-${sourceReq.id}-${targetReq.id}`,
+            source: sourceReq.id.toString(),
+            target: targetReq.id.toString(),
+            type: 'smoothstep',
+            style: {
+              stroke: '#94a3b8',
+              strokeWidth: 1,
+              strokeDasharray: '5,5',
+            },
+            markerEnd: {
+              type: 'arrowclosed',
+              width: 15,
+              height: 15,
+              color: '#94a3b8',
+            },
+          });
+        }
+      }
+    }
+
+    // Apply dagre layout
+    dagre.layout(dagreGraph);
+
+    // Group requirements by level and position them in columns
+    const levelGroups = new Map<string, any[]>();
+    requirements.forEach((req) => {
+      const level = req.level || 'L0';
+      if (!levelGroups.has(level)) {
+        levelGroups.set(level, []);
+      }
+      levelGroups.get(level)!.push(req);
+    });
+
+    // Create React Flow nodes with level-based column positioning
+    requirements.forEach((req) => {
+      const dagreNode = dagreGraph.node(req.id.toString());
+      const level = req.level || 'L0';
+      const levelRank = levelToRank.get(level) || 0;
+      const levelRequirements = levelGroups.get(level)!;
+      const indexInLevel = levelRequirements.findIndex(r => r.id === req.id);
+      
+      // Position nodes in columns by level, with vertical spacing within each level
+      const columnX = levelRank * 400; // Fixed column spacing
+      const verticalSpacing = 150;
+      const startY = -(levelRequirements.length - 1) * verticalSpacing / 2;
+      const nodeY = startY + indexInLevel * verticalSpacing;
+      
       nodes.push({
         id: req.id.toString(),
         type: 'requirement',
-        position: { x, y },
+        position: {
+          x: columnX,
+          y: nodeY,
+        },
         data: {
           ...req,
           label: req.name,
         },
       });
     });
-
-    // Create edges based on parent_req_id relationships
-    requirements.forEach((req) => {
-      if (req.parent_req_id) {
-        const sourceNode = requirements.find(r => r.id === req.parent_req_id);
-        if (sourceNode) {
-          edges.push({
-            id: `e${req.parent_req_id}-${req.id}`,
-            source: req.parent_req_id.toString(),
-            target: req.id.toString(),
-            type: 'smoothstep',
-            animated: true,
-            style: {
-              stroke: '#6366f1',
-              strokeWidth: 2,
-            },
-            markerEnd: {
-              type: 'arrowclosed',
-              width: 20,
-              height: 20,
-              color: '#6366f1',
-            },
-          });
-        }
-      }
-    });
-
-    // If no parent relationships exist, create some sample connections for visualization
-    if (edges.length === 0 && nodes.length > 1) {
-      // Create a simple chain for demo purposes
-      for (let i = 0; i < Math.min(nodes.length - 1, 3); i++) {
-        edges.push({
-          id: `demo-edge-${i}`,
-          source: nodes[i].id,
-          target: nodes[i + 1].id,
-          type: 'smoothstep',
-          style: {
-            stroke: '#94a3b8',
-            strokeWidth: 1,
-            strokeDasharray: '5,5',
-          },
-          markerEnd: {
-            type: 'arrowclosed',
-            width: 15,
-            height: 15,
-            color: '#94a3b8',
-          },
-        });
-      }
-    }
 
     return { nodes, edges };
   }, [requirements]);
@@ -260,6 +327,7 @@ const RequirementsGraph: React.FC<RequirementsGraphProps> = ({
         fitViewOptions={{
           padding: 0.2,
         }}
+        proOptions={{ hideAttribution: true }}
         className="bg-gray-50 dark:bg-gray-900"
       >
         <Controls 

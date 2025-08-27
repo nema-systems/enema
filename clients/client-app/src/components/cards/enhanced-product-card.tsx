@@ -15,11 +15,13 @@ interface ModuleInfo {
   name: string;
   description?: string;
   shared: boolean;
+  requirement_count?: number;
 }
 
 interface ReqCollectionInfo {
   id: number;
   name: string;
+  requirement_count?: number;
 }
 
 interface Product {
@@ -31,6 +33,8 @@ interface Product {
   created_at: string;
   base_module?: ModuleInfo;
   req_collection?: ReqCollectionInfo;
+  modules?: ModuleInfo[];
+  total_module_requirements?: number;
 }
 
 interface EnhancedProductCardProps {
@@ -75,12 +79,12 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
 
   const handleViewRequirements = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/workspace/${workspaceId}/requirements`);
+    navigate(`/workspace/${workspaceId}/requirements?product=${product.id}`);
   };
 
   const handleViewModules = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/workspace/${workspaceId}/modules`);
+    navigate(`/workspace/${workspaceId}/modules?product=${product.id}`);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -100,12 +104,12 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
 
   return (
     <div
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden border border-gray-200 dark:border-gray-700"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden border border-gray-200 dark:border-gray-700 h-full"
       onClick={onClick}
     >
-      <div className="flex">
+      <div className="flex h-full">
         <div className={`w-1 ${getBgColorFromId(product.id)} flex-shrink-0`} />
-        <div className="p-4 flex-1">
+        <div className="p-4 flex-1 flex flex-col">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -182,6 +186,11 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
               {product.req_collection ? (
                 <span className="text-gray-700 dark:text-gray-300">
                   <span className="font-medium">Requirements:</span> {product.req_collection.name}
+                  {product.req_collection.requirement_count !== undefined && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300">
+                      {product.req_collection.requirement_count} reqs
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="text-gray-500 dark:text-gray-400">
@@ -189,6 +198,21 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
                 </span>
               )}
             </div>
+
+            {/* Module Requirements Summary */}
+            {product.modules && product.modules.length > 0 && (
+              <div className="flex items-center text-sm">
+                <CubeIcon className="h-4 w-4 mr-2 text-blue-500" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Modules:</span> {product.modules.length} modules
+                  {product.total_module_requirements !== undefined && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300">
+                      {product.total_module_requirements} reqs
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Quick Actions */}
@@ -200,6 +224,11 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
               >
                 <DocumentTextIcon className="h-3 w-3 mr-1" />
                 Requirements
+                {product.req_collection?.requirement_count !== undefined && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-indigo-200 dark:bg-indigo-700 text-indigo-800 dark:text-indigo-200">
+                    {product.req_collection.requirement_count}
+                  </span>
+                )}
                 <ArrowTopRightOnSquareIcon className="h-3 w-3 ml-1" />
               </button>
               
@@ -209,6 +238,11 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
               >
                 <CubeIcon className="h-3 w-3 mr-1" />
                 Modules
+                {product.modules && product.modules.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-200">
+                    {product.modules.length}
+                  </span>
+                )}
                 <ArrowTopRightOnSquareIcon className="h-3 w-3 ml-1" />
               </button>
             </div>
@@ -228,9 +262,11 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
           )}
 
           {/* Footer */}
-          <p className="text-gray-400 dark:text-gray-500 text-xs">
-            Created: {new Date(product.created_at).toLocaleDateString()}
-          </p>
+          <div className="mt-auto">
+            <p className="text-gray-400 dark:text-gray-500 text-xs">
+              Created: {new Date(product.created_at).toLocaleDateString()}
+            </p>
+          </div>
         </div>
       </div>
     </div>

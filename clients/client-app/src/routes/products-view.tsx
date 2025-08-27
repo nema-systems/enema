@@ -29,11 +29,13 @@ interface ModuleInfo {
   name: string;
   description?: string;
   shared: boolean;
+  requirement_count?: number;
 }
 
 interface ReqCollectionInfo {
   id: number;
   name: string;
+  requirement_count?: number;
 }
 
 interface Product {
@@ -45,6 +47,8 @@ interface Product {
   created_at: string;
   base_module?: ModuleInfo;
   req_collection?: ReqCollectionInfo;
+  modules?: ModuleInfo[];
+  total_module_requirements?: number;
 }
 
 interface Workspace {
@@ -353,8 +357,8 @@ const ProductsView = () => {
             name: lastCreatedProduct.req_collection.name
           }] : [])
         ]}
-        onViewRequirements={() => navigate(`/workspace/${workspaceId}/requirements`)}
-        onViewModules={() => navigate(`/workspace/${workspaceId}/modules`)}
+        onViewRequirements={() => navigate(`/workspace/${workspaceId}/requirements?product=${lastCreatedProduct?.id}`)}
+        onViewModules={() => navigate(`/workspace/${workspaceId}/modules?product=${lastCreatedProduct?.id}`)}
       />
 
       {/* Delete Confirmation Modal */}

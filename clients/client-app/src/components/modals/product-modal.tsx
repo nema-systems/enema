@@ -89,7 +89,14 @@ const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduc
         }
       );
       
-      return response.data.data?.items || [];
+      const modules = response.data.data?.items || [];
+      
+      // Ensure each module has the required properties for SelectableItem
+      return modules.map((module: any) => ({
+        ...module,
+        name: module.name || 'Unnamed Module',
+        description: module.description || module.rules || null
+      }));
     } catch (err) {
       console.error("Error searching modules:", err);
       return [];

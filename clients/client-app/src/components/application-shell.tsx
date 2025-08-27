@@ -20,6 +20,7 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   FolderIcon,
+  ChatBubbleBottomCenterTextIcon,
 } from "@heroicons/react/24/outline";
 import { OrganizationSwitcher, UserButton, useAuth, useUser, useOrganization } from "@clerk/clerk-react";
 import axios from "axios";
@@ -242,6 +243,11 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       name: 'Files',
       href: `/workspace/${navigationWorkspace.id}/assets`,
       icon: FolderIcon,
+    },
+    {
+      name: 'Agent',
+      href: `/workspace/${navigationWorkspace.id}/agent`,
+      icon: ChatBubbleBottomCenterTextIcon,
     },
   ] : [];
 
