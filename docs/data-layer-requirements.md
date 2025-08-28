@@ -4,19 +4,18 @@
 
 ### Workspace and Products
 - **Workspace**: Container for multiple products with metadata (JSONB field reserved for future use)
-- **Product**: Contains references to modules (does not own ReqCollections directly), with metadata (JSONB field reserved for future use)
+- **Product**: Contains hierarchical modules with an optional default module, with metadata (JSONB field reserved for future use)
 - **Module Sharing**: Modules can be shared across multiple products
 - **Relationship**: Multiple products can exist within each workspace
 
 ### Requirements Structure
-- **Req (Requirement)**: Core requirement entity that belongs to exactly one ReqCollection, contains all version information in a single table
+- **Req (Requirement)**: Core requirement entity that belongs to exactly one Module, contains all version information in a single table
 - **Requirement Versioning**: Multiple rows in the REQ table represent different versions of the same logical requirement
 - **Base Req ID**: Shared integer identifier across all versions of the same logical requirement (base_req_id field)
-- **Requirement Hierarchy**: Requirements form a tree structure with parent-child relationships within a ReqCollection
-- **Requirement Attributes**: Requirements have base_req_id, level, priority, functional type, validation method, status, rationale, notes, name, definition, version information, and metadata (JSONB field reserved for future use)
-- **Requirement Ownership**: Requirements have both author (creator) and owner (current responsible user) relationships to User table
-- **Requirement Grouping**: Requirements can be associated with groups for organization and classification
-- **ReqCollection Membership**: Each requirement belongs to exactly one ReqCollection (no sharing across collections)
+- **Module Membership**: Each requirement belongs to exactly one Module (no sharing across modules)
+- **Requirement Attributes**: Requirements have base_req_id, level, priority, functional type, validation method, status, name, definition, version information, and metadata (JSONB field reserved for future use)
+- **Requirement Ownership**: Requirements have author (creator) relationship to User table
+- **Requirement Grouping**: Requirements can be associated with tags for organization and classification
 - **Comments**: Associated with requirements, contain text, ID, timestamp, author (User), and metadata (JSONB field reserved for future use)
 - **Version Management**: Each requirement version has an associated user (revision author) and version number
 - **Version Linking**: Requirements link to their previous version through prev_version field, maintaining history within the same base_req_id
@@ -33,12 +32,12 @@
 - **Parameter Version Linking**: Parameters link to their previous version through prev_version field, maintaining history within the same base_param_id
 - **Abstract Requirements**: A requirement is abstract if any of its associated parameters have multiple versions with the same group_id (computed, not stored)
 
-### Trees and Views
-- **ReqCollection**: A workspace-scoped requirement collection structure containing requirements directly, with metadata (JSONB field reserved for future use)
-- **Module**: A workspace-scoped curated view of a ReqCollection with explicitly selected requirements and parameters via junction tables, includes description, rules, sharing controls, and metadata (JSONB field reserved for future use)
-- **Module Sharing**: Modules have a shared flag - if false, only available to owning product
-- **Module Rules**: Modules have a rules field for filtering and business logic
-- **Abstract Collections**: A ReqCollection is abstract if it contains any abstract requirements (computed, not stored)
+### Module Hierarchy
+- **Module**: A workspace-scoped requirement container with hierarchical structure, includes description, sharing controls, and metadata (JSONB field reserved for future use)
+- **Module Hierarchy**: Modules can contain sub-modules through parent_module_id relationships
+- **Module Sharing**: Modules have a shared flag - if false, only available within their workspace context
+- **Product Default Module**: Each product has an optional default module for primary requirements
+- **Recursive Structure**: Modules can be nested to create organizational hierarchies
 
 ### Views and Selection
 - **Tags**: Workspace-scoped entities associated with requirements, parameters, and test cases for organizational filtering

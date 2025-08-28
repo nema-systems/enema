@@ -1,108 +1,76 @@
-# Nema Sandbox - Complete Project Guide
+# Enema
 
-A comprehensive data platform with artifact management, project organization, workflow orchestration, and AI capabilities. This guide consolidates all project information including development, deployment, and operational procedures.
+> A modern requirements management platform built for engineering teams
+
+Enema provides a comprehensive solution for managing requirements, organizing products, and tracking development progress with hierarchical modules, version control, and collaborative workflows.
 
 ## 📋 Table of Contents
 
-- [Project Overview](#project-overview)
-- [Quick Start](#quick-start)
-- [Current Status](#current-status)
-- [Architecture](#architecture)
-- [Development Guide](#development-guide)
-- [Deployment Options](#deployment-options)
-- [Project Management](#project-management)
-- [API Documentation](#api-documentation)
-- [Infrastructure Details](#infrastructure-details)
-- [Troubleshooting](#troubleshooting)
-- [Security & Performance](#security--performance)
-- [Cost Management](#cost-management)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Development](#-development)
+- [API Documentation](#-api-documentation)
+- [Deployment](#-deployment)
+- [Contributing](#-contributing)
+- [Documentation](#-documentation)
 
 ---
 
-## 📖 Project Overview
+## ✨ Features
 
-### What is Nema Sandbox?
+### Core Capabilities
+- 🏗️ **Hierarchical Organization** - Products contain modules in a tree structure for logical organization
+- 📋 **Requirements Management** - Full CRUD operations with versioning and status tracking
+- 🔐 **Enterprise Authentication** - Clerk integration with organization-level access control
+- 🚀 **Modern Stack** - FastAPI backend, React frontend, PostgreSQL database
+- 📊 **RESTful API** - Complete OpenAPI documentation with workspace-scoped endpoints
+- 🐳 **Containerized** - Docker Compose setup for development and production
+- ☁️ **Cloud Ready** - AWS ECS Fargate deployment with Terraform
 
-A complete data science platform that provides:
-
-- **Project Management**: Organize work into projects with proper isolation
-- **Artifact Management**: Track data artifacts, models, and analysis results with full metadata
-- **Workflow Orchestration**: Temporal-based workflow engine for data processing
-- **Authentication**: AWS Cognito integration with role-based access control
-- **REST API**: Full FastAPI backend with OpenAPI documentation
-- **Modern Frontend**: React-based dashboard with project and artifact management
-- **Containerized Architecture**: Full Docker Compose setup for development and production
-
-### Key Features ✅
-
-- **Project Organization**: Create and manage projects, select projects for artifact creation
-- **Artifact Management**: Full CRUD operations with PostgreSQL persistence
-- **Authentication**: AWS Cognito integration with JWT tokens
-- **Database**: PostgreSQL with proper schemas (nema, auth, temporal, embeddings)
-- **API**: FastAPI backend with complete OpenAPI documentation
-- **Frontend**: React dashboard with project and artifact management UI
-- **Containerization**: Complete Docker Compose setup for all services
-- **Production Ready**: AWS ECS Fargate deployment with Terraform
-
----
+### Built for Teams
+- **Multi-tenancy** - Organization and workspace isolation
+- **Role-based Access** - Granular permissions for different user types
+- **Collaborative** - Multiple users can work on requirements simultaneously
+- **Audit Trail** - Full version history and change tracking
+- **Scalable** - Designed to handle enterprise-scale requirement sets
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 18+ (for frontend development)
+- Python 3.11+ (for backend development)
+
 ### Local Development
 
-```bash
-# Start all services
-docker-compose up -d
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/nema-systems/enema.git
+   cd enema
+   ```
 
-# Access the applications
-# Main Dashboard: http://localhost:3000
-# API Documentation: http://localhost:8000/api/docs
-# Landing Page: http://localhost:3002
-# Temporal UI: http://localhost:8088
-# Database: postgres://nema:nema_password@localhost:5432/nema
+2. **Start all services**
+   ```bash
+   docker-compose up -d
+   ```
 
-# Login credentials
-# Username: admin@nema.io
-# Password: password123
-```
+3. **Access the application**
+   - **Main Dashboard**: http://localhost:3000
+   - **API Documentation**: http://localhost:8000/api/docs
+   - **Landing Page**: http://localhost:3002
+   - **Temporal UI**: http://localhost:8088
 
-### Production Deployment (AWS)
+4. **Login credentials**
+   ```
+   Username: admin@nema.io
+   Password: password123
+   ```
 
-```bash
-# Setup Terraform backend
-cd terraform/scripts && ./setup-terraform-backend.sh
+### Production Deployment
 
-# Configure secrets
-cd ../ && cp terraform.tfvars.local.example terraform.tfvars.local
-# Edit terraform.tfvars.local with your values
+See [Deployment Guide](#-deployment) for AWS ECS deployment instructions.
 
-# Deploy infrastructure
-./scripts/terraform-deploy.sh
-
-# Update services after code changes
-./scripts/update-services.sh
-```
-
----
-
-### 🔄 Currently Active Services
-
-#### Production URLs
-
-- **Main Application**: http://nema-sandbox-production-alb-1121483722.us-west-2.elb.amazonaws.com
-- **Admin Panel**: http://nema-sandbox-production-alb-1121483722.us-west-2.elb.amazonaws.com/admin
-- **Landing Page**: http://nema-sandbox-production-alb-1121483722.us-west-2.elb.amazonaws.com/landing
-- **API Docs**: http://nema-sandbox-production-alb-1121483722.us-west-2.elb.amazonaws.com/api/docs
-- **Health Check**: http://nema-sandbox-production-alb-1121483722.us-west-2.elb.amazonaws.com/api/health
-
-#### Infrastructure Status
-
-- **ECS Cluster**: `nema-sandbox-production-cluster` ✅ Running
-- **Database**: `nema-sandbox-production.cluster-xyz.us-west-2.rds.amazonaws.com` ✅ Operational
-- **Load Balancer**: `nema-sandbox-production-alb-1121483722.us-west-2.elb.amazonaws.com` ✅ Active
-- **Container Images**: All latest images built and deployed ✅
-
----
 
 ## 🏗️ Architecture
 
@@ -118,12 +86,12 @@ cd ../ && cp terraform.tfvars.local.example terraform.tfvars.local
 
 #### Database Schema
 
-- **nema.artifacts**: Core artifact storage with metadata and project relationships
-- **nema.projects**: Project organization and workspace management
-- **auth.tenants**: Multi-tenancy support for organizations
-- **auth.workspaces**: Workspace-level isolation and permissions
-- **temporal.**: Workflow execution state and history
-- **embeddings.artifact_embeddings**: Vector embeddings for semantic search
+- **workspace**: Workspace-level isolation and permissions
+- **product**: Product organization and management
+- **module**: Hierarchical module system for requirement organization
+- **req**: Requirements with versioning and metadata
+- **user**: User management with Clerk integration
+- **organization**: Organization-level multi-tenancy
 
 #### API Architecture
 
@@ -135,13 +103,15 @@ cd ../ && cp terraform.tfvars.local.example terraform.tfvars.local
 ### Project Structure
 
 ```
-sandbox/
+enema/
 ├── docker-compose.yml              # Local development
 ├── services/nema-core/              # Unified backend service
 │   ├── src/
 │   │   ├── main.py                  # FastAPI application
-│   │   ├── artifacts/               # Artifact management
-│   │   ├── projects/                # Project management (NEW)
+│   │   ├── api/v1/                  # API endpoints
+│   │   │   ├── products.py          # Product management
+│   │   │   ├── requirements.py      # Requirements management
+│   │   │   └── modules.py           # Module management
 │   │   ├── auth/                    # Authentication
 │   │   ├── database/                # Database models and sessions
 │   │   └── config/                  # Configuration management
@@ -225,7 +195,7 @@ terraform output
 - **RDS PostgreSQL** (managed database with backups)
 - **ECR Repositories** for container images
 - **VPC** with proper networking and security groups
-- **Cognito User Pool** for authentication
+- **Authentication** via Clerk (external SaaS)
 - **IAM roles** with least-privilege access
 - **CloudWatch** monitoring and logging
 
@@ -246,42 +216,36 @@ terraform output
 
 ---
 
-#### Creating Projects
+#### Creating Products
 
 **Via Frontend:**
 
 1. Go to http://localhost:3000 (or production URL)
 2. Login with credentials
-3. Click "Create Project" in the Projects card
-4. Enter project name and description
+3. Click "Create Product" in the Products card
+4. Enter product name and description
+5. Configure default module settings
 
 **Via API:**
 
 ```bash
-curl -X POST http://localhost:8000/api/projects/ \
+curl -X POST http://localhost:8000/api/v1/workspaces/1/products/ \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
-    "name": "My Project",
-    "description": "Project description",
-    "tenant_id": "default",
-    "workspace_id": "default"
+    "name": "My Product",
+    "description": "Product description",
+    "create_default_module": true
   }'
 ```
 
-#### Project Selection
+#### Product-Module Architecture
 
-- **UI Integration**: Projects card shows all available projects
-- **Visual Selection**: Click any project to select it for artifact creation
-- **Current Selection**: Artifacts card displays which project is selected
-- **Automatic Loading**: Projects load automatically when user logs in
-
-#### Project-Artifact Relationship
-
-- All artifacts must belong to a project
-- Project selection is required for artifact creation
-- Projects provide organizational structure for data assets
-- Database enforces referential integrity between projects and artifacts
+- **Hierarchical Structure**: Products contain modules in a tree structure
+- **Default Module**: Each product can have a default module for requirements
+- **Recursive Modules**: Modules can contain sub-modules for organization
+- **Requirement Assignment**: Requirements belong to specific modules
+- **Database Integrity**: Enforced referential integrity between products, modules, and requirements
 
 ---
 
@@ -386,8 +350,8 @@ Use the auto-update script for easy deployments:
 **Symptoms**: Login returns 500 errors or invalid credentials
 **Solutions**:
 
-- Ensure SECRET_HASH is calculated correctly in cognito.py
-- Verify IAM role has Cognito permissions
+- Verify Clerk configuration and API keys are correct
+- Check JWT token validation and signature
 
 #### 2. Database Connection Issues
 

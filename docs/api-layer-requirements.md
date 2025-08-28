@@ -55,14 +55,6 @@ PUT    /api/v1/workspaces/{wsId}/modules/{id}
 DELETE /api/v1/workspaces/{wsId}/modules/{id}
 ```
 
-### Requirement Trees
-```
-GET    /api/v1/workspaces/{wsId}/req_collections
-POST   /api/v1/workspaces/{wsId}/req_collections
-GET    /api/v1/workspaces/{wsId}/req_collections/{id}
-PUT    /api/v1/workspaces/{wsId}/req_collections/{id}
-DELETE /api/v1/workspaces/{wsId}/req_collections/{id}
-```
 
 ### Requirements Management
 ```
@@ -147,11 +139,10 @@ DELETE /api/v1/workspaces/{wsId}/groups/{id}
 ?updated_before=2024-12-31
 
 # Relationships
-?module_id=123        # Resources in module
-?product_id=456          # Modules in product
-?req_collection_id=789  # Requirements in collection
-?author_id=999           # Created by user
-?owner_id=888            # Owned by user
+?module_id=123        # Requirements in module
+?product_id=456       # Modules in product
+?parent_module_id=789 # Sub-modules in parent module
+?author_id=999        # Created by user
 
 # Sorting
 ?sort=created_at&order=desc
@@ -164,7 +155,7 @@ DELETE /api/v1/workspaces/{wsId}/groups/{id}
 GET /workspaces/1/modules?product_id=123&shared=true
 
 # Requirements  
-GET /workspaces/1/requirements?module_id=123&status=approved&level=system
+GET /workspaces/1/requirements?module_id=123&status=approved&level=L0
 
 # Parameters
 GET /workspaces/1/parameters?module_id=123&type=number&group_id=auth

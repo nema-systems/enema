@@ -27,15 +27,15 @@ TOKEN=$(curl -s -X POST "http://localhost:8000/api/dev/get-clerk-token" \
 curl -L "http://localhost:8000/api/v1/workspaces" \
   -H "Authorization: Bearer $TOKEN"
 
-# List req_collections
-curl -L "http://localhost:8000/api/v1/workspaces/{workspace_id}/req_collections" \
+# List products
+curl -L "http://localhost:8000/api/v1/workspaces/{workspace_id}/products" \
   -H "Authorization: Bearer $TOKEN"
 
-# Create req_collection
-curl -L -X POST "http://localhost:8000/api/v1/workspaces/{workspace_id}/req_collections" \
+# Create product
+curl -L -X POST "http://localhost:8000/api/v1/workspaces/{workspace_id}/products" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test Collection","metadata":{"source":"api"}}'
+  -d '{"name":"Test Product","description":"Test product description","create_default_module":true}'
 ```
 
 ## Available Endpoints
@@ -57,7 +57,7 @@ curl -L -X POST "http://localhost:8000/api/v1/workspaces/{workspace_id}/req_coll
 Use `./test_api.sh` for comprehensive testing:
 
 ```bash
-cd /Users/bence/dev/nema
+cd /Users/bence/dev/enema
 ./test_api.sh
 ```
 

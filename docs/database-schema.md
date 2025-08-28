@@ -1,4 +1,4 @@
-# Entity Relationship Diagram
+# Entity Relationship Diagram - Simplified Architecture
 
 ```mermaid
 erDiagram
@@ -12,9 +12,10 @@ erDiagram
     PRODUCT {
         int id PK
         int workspace_id FK
+        int default_module_id FK
         string name
         string description
-        jsonb metadata
+        jsonb meta_data
         datetime created_at
     }
 
@@ -40,35 +41,27 @@ erDiagram
         datetime updated_at
     }
 
-    REQ_COLLECTION {
-        int id PK
-        int workspace_id FK
-        string name
-        jsonb metadata
-        datetime created_at
-    }
 
     MODULE {
         int id PK
         int workspace_id FK
-        int req_collection_id FK
+        int parent_module_id FK
         string name
         text description
         text rules
         boolean shared
-        jsonb metadata
+        string public_id
+        jsonb meta_data
         datetime created_at
     }
 
 
     REQ {
         int id PK
-        int base_req_id
-        int parent_req_id FK
+        int base_req_id FK
         int prev_version FK
-        int req_collection_id FK
+        int module_id FK
         int author_id FK
-        int owner_id FK
         string public_id
         string name
         text definition
@@ -78,9 +71,7 @@ erDiagram
         string functional
         string validation_method
         string status
-        text rationale
-        text notes
-        jsonb metadata
+        jsonb meta_data
         datetime created_at
     }
 
@@ -194,10 +185,10 @@ erDiagram
         datetime updated_at
     }
 
-    PRODUCT_MODULES {
+    MODULE_HIERARCHY {
         int workspace_id FK
-        int product_id FK
-        int module_id FK
+        int parent_module_id FK
+        int child_module_id FK
     }
 
     REQUIREMENT_PARAMETERS {
@@ -224,11 +215,6 @@ erDiagram
         int param_id FK
     }
 
-    MODULE_REQUIREMENTS {
-        int workspace_id FK
-        int module_id FK
-        int req_id FK
-    }
 
     TESTCASE_REQUIREMENTS {
         int workspace_id FK
@@ -280,10 +266,11 @@ erDiagram
 
     %% Direct Relationships
     WORKSPACE ||--o{ PRODUCT : contains
-    MODULE }o--|| REQ_COLLECTION : "views"
-    REQ_COLLECTION ||--o{ REQ : "contains"
+    PRODUCT ||--o{ MODULE : "has default"
+    MODULE ||--o{ MODULE : "contains sub-modules"
+    MODULE ||--o{ REQ : "contains"
 
-    REQ ||--o{ REQ : "parent-child"
+    REQ ||--o{ REQ : "base-version"
     REQ ||--o{ REQ : "prev-version"
     REQ ||--o{ COMMENT : "has comments"
 
@@ -291,7 +278,6 @@ erDiagram
     TESTCASE ||--o{ TESTRUN : "has runs"
 
     USER ||--o{ REQ : "authors"
-    USER ||--o{ REQ : "owns"
     USER ||--o{ PARAM : "authors"
     USER ||--o{ COMMENT : "writes"
     USER ||--o{ TESTRUN : "executes"
@@ -307,12 +293,11 @@ erDiagram
     WORKSPACE ||--o{ TAG : "contains"
     WORKSPACE ||--o{ GROUP : "contains"
     WORKSPACE ||--o{ ASSET : "contains"
-    WORKSPACE ||--o{ REQ_COLLECTION : "contains"
     WORKSPACE ||--o{ MODULE : "contains"
 
     %% Many-to-Many through junction tables
-    PRODUCT ||--o{ PRODUCT_MODULES : ""
-    PRODUCT_MODULES }o--|| MODULE : ""
+    MODULE ||--o{ MODULE_HIERARCHY : ""
+    MODULE_HIERARCHY }o--|| MODULE : ""
 
     REQ ||--o{ REQUIREMENT_PARAMETERS : ""
     REQUIREMENT_PARAMETERS }o--|| PARAM : ""
