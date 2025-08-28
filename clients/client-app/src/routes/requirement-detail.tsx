@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { Requirement } from "../types/requirement";
-import { LoadingSpinner } from "../components/ui/loading-spinner";
-import { ErrorMessage } from "../components/ui/error-message";
-import { SuccessToast } from "../components/ui/success-toast";
+import LoadingSpinner from "../components/ui/loading-spinner";
+import ErrorMessage from "../components/ui/error-message";
+import SuccessToast from "../components/ui/success-toast";
 import axios from "axios";
 import { apiUrl } from "../utils/api";
 
