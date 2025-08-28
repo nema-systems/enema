@@ -88,9 +88,7 @@ class Settings(BaseSettings):
         if self.is_production:
             # In production, be more restrictive
             return [
-                self.client_app_url,
-                self.client_admin_url, 
-                self.client_landing_url
+                self.client_app_url
             ]
         else:
             # In development, allow all localhost ports

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { apiUrl } from '../../utils/api';
 
 export interface Parameter {
   id: number;
@@ -52,8 +53,7 @@ export const fetchParameters = createAsyncThunk(
       }
     });
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const url = `${apiUrl}/api/v1/workspaces/${workspaceId}/parameters/?${query}`;
+    const url = `${apiUrl(`/api/v1/workspaces/${workspaceId}/parameters`)}/?${query}`;
     
     const response = await fetch(url, {
       headers: {
@@ -78,18 +78,16 @@ export const createParameter = createAsyncThunk(
     workspaceId: number;
     parameter: {
       name: string;
+      value: string;
       type: string;
       description?: string;
-      value?: any;
-      group_id: string;
       metadata?: any;
     };
   }) => {
     const { workspaceId, parameter } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/parameters`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/parameters`),
       {
         method: "POST",
         headers: {
@@ -114,20 +112,18 @@ export const updateParameter = createAsyncThunk(
   async (params: {
     workspaceId: number;
     parameterId: number;
-    updates: {
-      name?: string;
-      type?: string;
-      description?: string;
-      value?: any;
-      group_id?: string;
-      metadata?: any;
-    };
+    updates: Partial<{
+      name: string;
+      value: string;
+      type: string;
+      description: string;
+      metadata: any;
+    }>;
   }) => {
     const { workspaceId, parameterId, updates } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/parameters/${parameterId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/parameters/${parameterId}`),
       {
         method: "PUT",
         headers: {
@@ -152,9 +148,8 @@ export const deleteParameter = createAsyncThunk(
   async (params: { workspaceId: number; parameterId: number }) => {
     const { workspaceId, parameterId } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/parameters/${parameterId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/parameters/${parameterId}`),
       {
         method: "DELETE",
         headers: {
@@ -187,9 +182,8 @@ export const createParameterVersion = createAsyncThunk(
   }) => {
     const { workspaceId, parameterId, version } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/parameters/${parameterId}/versions`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/parameters/${parameterId}/versions`),
       {
         method: "POST",
         headers: {

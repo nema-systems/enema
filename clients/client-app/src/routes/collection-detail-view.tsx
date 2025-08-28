@@ -10,6 +10,7 @@ import TabNavigation from '../components/ui/tab-navigation';
 import RequirementCreationModal, { RequirementFormData } from '../components/modals/requirement-creation-modal';
 import RequirementsGraph from '../components/requirements/requirements-graph';
 import SuccessToast from '../components/ui/success-toast';
+import { apiUrl } from '../utils/api';
 
 interface ReqCollection {
   id: number;
@@ -123,7 +124,7 @@ const CollectionDetailView: React.FC = () => {
     try {
       const token = await getToken({ template: 'default' });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${collectionId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections/${collectionId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -141,7 +142,7 @@ const CollectionDetailView: React.FC = () => {
     try {
       const token = await getToken({ template: 'default' });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements?req_collection_id=${collectionId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements?req_collection_id=${collectionId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -154,7 +155,7 @@ const CollectionDetailView: React.FC = () => {
   };
 
   const handleCreateRequirement = async (formData: RequirementFormData) => {
-    if (!workspaceId) return;
+    if (!workspaceId || !collectionId) return;
 
     setIsCreating(true);
     
@@ -178,7 +179,7 @@ const CollectionDetailView: React.FC = () => {
       console.log('Creating requirement with payload:', payload);
       
       const response = await axios.post(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements`),
         payload,
         {
           headers: {

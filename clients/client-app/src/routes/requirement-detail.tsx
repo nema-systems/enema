@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
-import { useAuth, OrganizationSwitcher } from "@clerk/clerk-react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
+import { Requirement } from "../types/requirement";
+import { LoadingSpinner } from "../components/ui/loading-spinner";
+import { ErrorMessage } from "../components/ui/error-message";
+import { SuccessToast } from "../components/ui/success-toast";
 import axios from "axios";
-import LoadingSpinner from "../components/ui/loading-spinner";
-import ErrorMessage from "../components/ui/error-message";
+import { apiUrl } from "../utils/api";
 
 interface Requirement {
   id: number;
@@ -42,21 +45,13 @@ const RequirementDetail = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/${requirementId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements/${requirementId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       
-      const reqData = response.data.data;
-      setRequirement(reqData);
-      setEditForm({
-        name: reqData.name || '',
-        description: reqData.description || '',
-        status: reqData.status || '',
-        priority: reqData.priority || '',
-        req_type: reqData.req_type || ''
-      });
+      setRequirement(response.data.data);
       setError(null);
     } catch (err: any) {
       console.error("Error fetching requirement:", err);
@@ -66,48 +61,46 @@ const RequirementDetail = () => {
     }
   };
 
-  const updateRequirement = async () => {
+  const handleUpdateRequirement = async (updates: Partial<Requirement>) => {
     if (!workspaceId || !requirementId) return;
-
+    
     try {
       const token = await getToken({ template: "default" });
-      
       const response = await axios.put(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/${requirementId}`,
-        editForm,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements/${requirementId}`),
+        updates,
         {
-          headers: {
+          headers: { 
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           },
         }
       );
       
+      // Update local state
       setRequirement(response.data.data);
-      setEditing(false);
+      
+      setSuccessMessage("Requirement updated successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err: any) {
       console.error("Error updating requirement:", err);
       alert(err.response?.data?.message || "Failed to update requirement");
     }
   };
 
-  const deleteRequirement = async () => {
+  const handleDeleteRequirement = async () => {
     if (!workspaceId || !requirementId) return;
     
-    const confirmed = confirm("Are you sure you want to delete this requirement?");
-    if (!confirmed) return;
-
     try {
       const token = await getToken({ template: "default" });
-      
       await axios.delete(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/${requirementId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements/${requirementId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       
-      // Navigate back to requirements list
+      // Redirect to requirements list
       navigate(`/workspace/${workspaceId}/requirements`);
     } catch (err: any) {
       console.error("Error deleting requirement:", err);
@@ -210,7 +203,7 @@ const RequirementDetail = () => {
                       Edit
                     </button>
                     <button
-                      onClick={deleteRequirement}
+                      onClick={handleDeleteRequirement}
                       className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
                     >
                       Delete

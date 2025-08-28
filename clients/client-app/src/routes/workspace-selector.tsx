@@ -1,22 +1,11 @@
-import { useEffect } from "react";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { 
-  setWorkspaces, 
-  addWorkspace, 
-  setLoading, 
-  setError,
-  clearWorkspaces 
-} from "../store/workspaces/workspaces.slice";
-import { 
-  selectWorkspaces, 
-  selectWorkspacesLoading, 
-  selectWorkspacesError 
-} from "../store/workspaces/workspaces.selectors";
-import LoadingSpinner from "../components/ui/loading-spinner";
-import ErrorMessage from "../components/ui/error-message";
+import { setWorkspaces, setLoading, setError, addWorkspace } from "../store/workspaces/workspaces.slice";
+import { selectWorkspaces, selectWorkspacesLoading, selectWorkspacesError } from "../store/workspaces/workspaces.selectors";
+import axios from "axios";
+import { apiUrl } from "../utils/api";
 
 interface Workspace {
   id: string;
@@ -40,7 +29,7 @@ const WorkspaceSelector = () => {
       dispatch(setLoading(true));
       const token = await getToken({ template: "default" });
       
-      const response = await axios.get("http://localhost:8000/api/v1/workspaces/", {
+      const response = await axios.get(apiUrl('/api/v1/workspaces/'), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -68,9 +57,8 @@ const WorkspaceSelector = () => {
 
     try {
       const token = await getToken({ template: "default" });
-      
       const response = await axios.post(
-        "http://localhost:8000/api/v1/workspaces/",
+        apiUrl('/api/v1/workspaces/'),
         { name, description: "" },
         {
           headers: {

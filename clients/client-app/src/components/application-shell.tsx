@@ -29,6 +29,7 @@ import { selectWorkspaces } from "../store/workspaces/workspaces.selectors";
 import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selectors";
 import { setWorkspaces, setSelectedWorkspaceId } from "../store/workspaces/workspaces.slice";
 import NemaLogo from "../icons/nema-logo";
+import { apiUrl } from "../utils/api";
 
 interface NavigationItemProps {
   name: string;
@@ -165,7 +166,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       try {
         setWorkspacesLoaded(false); // Reset loading state
         const token = await getToken({ template: "default" });
-        const response = await axios.get("http://localhost:8000/api/v1/workspaces/", {
+        const response = await axios.get(apiUrl('/api/v1/workspaces/'), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -180,12 +181,8 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
         }
         
         // Auto-select first workspace if none selected and we have workspaces
-        if ((!selectedWorkspace || !workspaceList.find(w => w.id === selectedWorkspace.id)) && workspaceList.length > 0) {
-          dispatch(setSelectedWorkspaceId(workspaceList[0].id));
-          // Auto-redirect to first workspace if on home page or if current workspace is invalid
-          if (window.location.pathname === '/' || (selectedWorkspace && !workspaceList.find(w => w.id === selectedWorkspace.id))) {
-            navigate(`/workspace/${workspaceList[0].id}/products`);
-          }
+        if (!selectedWorkspace && workspaceList.length > 0) {
+          dispatch(setSelectedWorkspaceId(workspaceList[0].id.toString()));
         }
         
         setWorkspacesLoaded(true);
@@ -196,7 +193,7 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
     };
 
     fetchWorkspaces();
-  }, [user, organization, dispatch]);
+  }, [user, getToken, dispatch, selectedWorkspace]);
 
   // Update selected workspace when URL changes
   useEffect(() => {

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from "@heroicons/react/24/outline";
 import { CheckCircleIcon, CubeIcon, DocumentTextIcon } from "@heroicons/react/24/solid";
 import { useAuth } from "@clerk/clerk-react";
 import axios from "axios";
 import SearchableMultiSelect, { SelectableItem } from "../ui/searchable-multi-select";
+import { apiUrl } from "../../utils/api";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -50,6 +51,8 @@ const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduc
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [modules, setModules] = useState<Module[]>([]);
 
   // Initialize form data when editing
   useEffect(() => {
@@ -78,7 +81,7 @@ const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduc
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { 
@@ -100,6 +103,27 @@ const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduc
     } catch (err) {
       console.error("Error searching modules:", err);
       return [];
+    }
+  };
+
+  const fetchModules = async () => {
+    try {
+      setLoadingModules(true);
+      const token = await getToken({ template: "default" });
+      
+      const response = await axios.get(
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      setModules(response.data.data?.items || []);
+    } catch (err) {
+      console.error("Error fetching modules:", err);
+      setModules([]);
+    } finally {
+      setLoadingModules(false);
     }
   };
 
