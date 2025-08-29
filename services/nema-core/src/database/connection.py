@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 import structlog
-import os
 
 logger = structlog.get_logger(__name__)
 
@@ -26,7 +25,7 @@ async def init_database(database_url: str):
     elif not database_url.startswith("postgresql+asyncpg://"):
         logger.warning("Database URL should use postgresql+asyncpg:// for async support")
     
-    # Prepare connect_args with SSL parameters from environment variables
+    # Prepare connect_args with basic server settings
     connect_args = {
         "server_settings": {
             "application_name": "nema-core",
@@ -34,16 +33,9 @@ async def init_database(database_url: str):
         }
     }
     
-    # Add SSL parameters from environment variables if present
-    ssl_params = {}
-    if os.getenv("DB_SSLMODE"):
-        ssl_params["sslmode"] = os.getenv("DB_SSLMODE")
-    if os.getenv("DB_CHANNEL_BINDING"):
-        ssl_params["channel_binding"] = os.getenv("DB_CHANNEL_BINDING")
-    
-    if ssl_params:
-        connect_args.update(ssl_params)
-        logger.info("SSL parameters configured from environment", ssl_params=ssl_params)
+    # Note: SSL parameters like sslmode and channel_binding are not supported
+    # by SQLAlchemy with asyncpg. These should be handled by the connection URL
+    # or let asyncpg use its default SSL behavior.
     
     # Create async engine with cloud deployment settings
     engine = create_async_engine(

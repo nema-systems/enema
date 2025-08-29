@@ -75,13 +75,19 @@ app = FastAPI(
 
 # Configure CORS
 settings = get_settings()
-app.add_middleware(
-    CORSMiddleware,
+
+cors_kwargs = dict(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Only set regex when provided (e.g., in production); empty string disables it
+if getattr(settings, "cors_origin_regex", ""):
+    cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 # Health check endpoint (under /api for consistent routing)
 @app.get("/api/health")
