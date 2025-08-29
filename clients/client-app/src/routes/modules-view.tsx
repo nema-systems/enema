@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import axios from "axios";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
@@ -19,15 +19,11 @@ const ModulesView: React.FC = () => {
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
   const { setModule, setWorkspace } = useGlobalFilter();
-  const [searchParams, setSearchParams] = useSearchParams();
   
   const modules = useAppSelector(selectModules);
   const loading = useAppSelector(selectModulesLoading);
   const error = useAppSelector(selectModulesError);
   
-  const [sortBy, setSortBy] = useState<"name" | "created_at">(searchParams.get('sortBy') as "name" | "created_at" || "created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(searchParams.get('sortOrder') as "asc" | "desc" || "desc");
-  const [productFilter, setProductFilter] = useState<string>(searchParams.get('product') || "all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -62,12 +58,8 @@ const ModulesView: React.FC = () => {
       dispatch(setLoading(true));
       const token = await getToken({ template: "default" });
       
-      // Build query params
+      // Build query params - show all modules including default/base modules
       const params: any = {};
-      if (productFilter !== "all") {
-        params.product_id = productFilter;
-      }
-      // Remove shared filter - show all modules including default/base modules
       
       const response = await axios.get(
         apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
@@ -97,7 +89,6 @@ const ModulesView: React.FC = () => {
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        rules: formData.rules.trim() || null,
         shared: formData.shared,
       };
 
@@ -133,7 +124,6 @@ const ModulesView: React.FC = () => {
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        rules: formData.rules.trim() || null,
       };
 
       const response = await axios.put(
@@ -224,40 +214,8 @@ const ModulesView: React.FC = () => {
     fetchProducts();
   }, [workspaceId, setWorkspace]);
   
-  // Refetch modules when product filter changes
-  useEffect(() => {
-    fetchModules();
-  }, [productFilter]);
 
-  // Update URL when filters change
-  const updateSearchParams = (newFilters: { [key: string]: string }) => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    
-    Object.entries(newFilters).forEach(([key, value]) => {
-      if ((value === "all" && key === "product") || 
-          (value === "created_at" && key === "sortBy") || 
-          (value === "desc" && key === "sortOrder")) {
-        newSearchParams.delete(key);
-      } else {
-        newSearchParams.set(key, value);
-      }
-    });
-    
-    setSearchParams(newSearchParams);
-  };
   
-  // Sort modules (filtering by product is now done server-side)
-  const sortedModules = [...modules]
-    .sort((a, b) => {
-      const aVal = sortBy === "name" ? a.name : new Date(a.created_at).getTime();
-      const bVal = sortBy === "name" ? b.name : new Date(b.created_at).getTime();
-      
-      if (sortBy === "name") {
-        return sortOrder === "asc" ? (aVal as string).localeCompare(bVal as string) : (bVal as string).localeCompare(aVal as string);
-      } else {
-        return sortOrder === "asc" ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
-      }
-    });
 
   // Remove this block to use inline loading like projects view
 
@@ -266,13 +224,10 @@ const ModulesView: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {productFilter === "all" ? "Modules" : "Modules"}
+            Modules
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {productFilter === "all" 
-              ? "Manage your system modules including base modules"
-              : `Showing modules for: ${products.find(p => p.id.toString() === productFilter)?.name || 'Selected Product'}`
-            }
+            Manage your system modules including base modules
           </p>
         </div>
         <button
@@ -284,60 +239,12 @@ const ModulesView: React.FC = () => {
         </button>
       </div>
 
-      {/* Filter and Sort Controls */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-end">
-        <div className="flex gap-2">
-          <select
-            value={productFilter}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setProductFilter(newValue);
-              updateSearchParams({ product: newValue });
-            }}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="all">All Modules</option>
-            {products.map((product) => (
-              <option key={product.id} value={product.id.toString()}>
-                {product.name} - All Associated Modules
-              </option>
-            ))}
-          </select>
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              const newValue = e.target.value as "name" | "created_at";
-              setSortBy(newValue);
-              updateSearchParams({ sortBy: newValue });
-            }}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="created_at">Sort by Date</option>
-            <option value="name">Sort by Name</option>
-          </select>
-          <select
-            value={sortOrder}
-            onChange={(e) => {
-              const newValue = e.target.value as "asc" | "desc";
-              setSortOrder(newValue);
-              updateSearchParams({ sortOrder: newValue });
-            }}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
-        </div>
-      </div>
 
       {/* Modules List */}
       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-            {productFilter === "all" 
-              ? `All Modules (${modules.length})` 
-              : `Modules for ${products.find(p => p.id.toString() === productFilter)?.name || 'Product'} (${modules.length})`
-            }
+            All Modules ({modules.length})
           </h2>
         </div>
 
@@ -354,7 +261,7 @@ const ModulesView: React.FC = () => {
                 onRetry={fetchModules}
               />
             </div>
-          ) : sortedModules.length === 0 ? (
+          ) : modules.length === 0 ? (
             <div className="text-center py-12">
               <CubeIcon className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -378,7 +285,7 @@ const ModulesView: React.FC = () => {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {sortedModules.map((module) => (
+              {modules.map((module) => (
                 <div
                   key={module.id}
                   onClick={() => {

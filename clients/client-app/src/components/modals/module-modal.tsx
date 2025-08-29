@@ -25,7 +25,6 @@ interface Module {
 export interface ModuleFormData {
   name: string;
   description: string;
-  rules: string;
   // shared is always true for manually created modules
 }
 
@@ -35,7 +34,6 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
   const [formData, setFormData] = useState<ModuleFormData>({
     name: "",
     description: "",
-    rules: "Default module rules - customize as needed",
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -46,13 +44,11 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
       setFormData({
         name: editModule.name,
         description: editModule.description || "",
-        rules: editModule.rules || "Default module rules - customize as needed",
       });
     } else {
       setFormData({
         name: "",
         description: "",
-        rules: "Default module rules - customize as needed",
       });
     }
   }, [editModule]);
@@ -82,7 +78,6 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
         setFormData({
           name: "",
           description: "",
-          rules: "Default module rules - customize as needed",
         });
       }
       setErrors({});
@@ -168,34 +163,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
                 />
               </div>
 
-              {/* Module Rules */}
-              <div>
-                <label htmlFor="module-rules" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Rules & Guidelines
-                </label>
-                <textarea
-                  id="module-rules"
-                  value={formData.rules}
-                  onChange={(e) => setFormData({ ...formData, rules: e.target.value })}
-                  disabled={isLoading}
-                  rows={4}
-                  className="w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-300/50 dark:border-gray-600/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200"
-                  placeholder="Enter module rules and guidelines"
-                />
-              </div>
 
-              {/* Info about shared modules */}
-              <div className="bg-green-50/70 dark:bg-green-900/30 backdrop-blur border border-green-200/40 dark:border-green-800/40 rounded-lg p-4">
-                <div className="flex items-center">
-                  <CubeIcon className="h-5 w-5 text-green-600 dark:text-green-400 mr-3" />
-                  <div>
-                    <p className="font-medium text-green-900 dark:text-green-100">Shared Module</p>
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      All manually created modules are shared and can be reused across multiple products
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
