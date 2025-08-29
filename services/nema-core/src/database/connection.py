@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 import structlog
+import os
 
 logger = structlog.get_logger(__name__)
 
@@ -25,6 +26,25 @@ async def init_database(database_url: str):
     elif not database_url.startswith("postgresql+asyncpg://"):
         logger.warning("Database URL should use postgresql+asyncpg:// for async support")
     
+    # Prepare connect_args with SSL parameters from environment variables
+    connect_args = {
+        "server_settings": {
+            "application_name": "nema-core",
+            "jit": "off"  # Disable JIT for better cold start performance
+        }
+    }
+    
+    # Add SSL parameters from environment variables if present
+    ssl_params = {}
+    if os.getenv("DB_SSLMODE"):
+        ssl_params["sslmode"] = os.getenv("DB_SSLMODE")
+    if os.getenv("DB_CHANNEL_BINDING"):
+        ssl_params["channel_binding"] = os.getenv("DB_CHANNEL_BINDING")
+    
+    if ssl_params:
+        connect_args.update(ssl_params)
+        logger.info("SSL parameters configured from environment", ssl_params=ssl_params)
+    
     # Create async engine with cloud deployment settings
     engine = create_async_engine(
         database_url,
@@ -34,12 +54,7 @@ async def init_database(database_url: str):
         pool_pre_ping=True,  # Validate connections before use
         pool_recycle=3600,   # Recycle connections after 1 hour
         # Additional cloud-friendly settings
-        connect_args={
-            "server_settings": {
-                "application_name": "nema-core",
-                "jit": "off"  # Disable JIT for better cold start performance
-            }
-        }
+        connect_args=connect_args
     )
     
     # Create session factory
