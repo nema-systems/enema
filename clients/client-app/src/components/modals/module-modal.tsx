@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from "@heroicons/react/24/outline";
 import { CubeIcon, DocumentTextIcon } from "@heroicons/react/24/solid";
 import { useAuth } from "@clerk/clerk-react";
 import axios from "axios";
+import { apiUrl } from "../../utils/api";
 
 interface ReqCollection {
   id: number;
@@ -93,7 +94,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
       
       // Get all req collections
       const collectionsResponse = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -101,7 +102,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
       
       // Get all modules to find which req collections are already used
       const modulesResponse = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }

@@ -1,28 +1,19 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import {
-  setProducts,
-  addProduct,
-  setLoading,
-  setError,
-  clearProducts,
-} from "../store/products/products.slice";
-import {
-  selectProducts,
-  selectProductsLoading,
-  selectProductsError,
-} from "../store/products/products.selectors";
+import { setProducts, setLoading, setError, removeProduct, addProduct, clearProducts } from "../store/products/products.slice";
+import { selectProducts, selectProductsLoading, selectProductsError } from "../store/products/products.selectors";
 import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selectors";
+import EnhancedProductCard from "../components/cards/enhanced-product-card";
+import ProductModal, { ProductFormData } from "../components/modals/product-modal";
+import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
+import DeleteReqCollectionModal from "../components/modals/delete-req-collection-modal";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
-import ProductModal, { ProductFormData } from "../components/modals/product-modal";
 import SuccessToast from "../components/ui/success-toast";
-import EnhancedProductCard from "../components/cards/enhanced-product-card";
-import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
-import { removeProduct } from "../store/products/products.slice";
+import axios from "axios";
+import { apiUrl } from "../utils/api";
 
 interface ModuleInfo {
   id: number;
@@ -87,13 +78,13 @@ const ProductsView = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       setWorkspaceDetails(response.data.data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error fetching workspace:", err);
     }
   };
@@ -106,7 +97,7 @@ const ProductsView = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/products`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -131,7 +122,7 @@ const ProductsView = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.post(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/products`),
         {
           name: formData.name,
           description: formData.description,
@@ -178,7 +169,7 @@ const ProductsView = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products/${product.id}/deletion-preview`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/products/${product.id}/deletion-preview`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -200,8 +191,8 @@ const ProductsView = () => {
     try {
       const token = await getToken({ template: "default" });
       
-      await axios.delete(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products/${productToDelete.id}`,
+      const response = await axios.delete(
+        apiUrl(`/api/v1/workspaces/${workspaceId}/products/${productToDelete.id}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }

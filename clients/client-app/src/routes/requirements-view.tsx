@@ -9,6 +9,8 @@ import {
   setLoading,
   setError,
   clearRequirements,
+  updateRequirement,
+  deleteRequirement,
 } from "../store/requirements/requirements.slice";
 import {
   selectRequirements,
@@ -22,6 +24,7 @@ import ErrorMessage from "../components/ui/error-message";
 import RequirementCreationModal, { RequirementFormData } from "../components/modals/requirement-creation-modal";
 import SuccessToast from "../components/ui/success-toast";
 import { DocumentTextIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
+import { apiUrl } from "../utils/api";
 
 
 interface Workspace {
@@ -73,7 +76,7 @@ const RequirementsView = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -99,7 +102,7 @@ const RequirementsView = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements`),
         {
           headers: { Authorization: `Bearer ${token}` },
           params: {
@@ -147,7 +150,7 @@ const RequirementsView = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections`),
         {
           headers: { Authorization: `Bearer ${token}` },
           params: {
@@ -169,7 +172,7 @@ const RequirementsView = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/products`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -207,7 +210,7 @@ const RequirementsView = () => {
       
       const response = isEditing 
         ? await axios.put(
-            `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/${editingRequirement.id}`,
+            apiUrl(`/api/v1/workspaces/${workspaceId}/requirements/${editingRequirement.id}`),
             payload,
             {
               headers: {
@@ -217,7 +220,7 @@ const RequirementsView = () => {
             }
           )
         : await axios.post(
-            `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
+            apiUrl(`/api/v1/workspaces/${workspaceId}/requirements`),
             payload,
             {
               headers: {

@@ -10,6 +10,7 @@ import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 import { CubeIcon, PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import ModuleModal, { ModuleFormData } from "../components/modals/module-modal";
+import { apiUrl } from "../utils/api";
 
 const ModulesView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -68,7 +69,7 @@ const ModulesView: React.FC = () => {
       }
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
         {
           headers: { Authorization: `Bearer ${token}` },
           params
@@ -103,7 +104,7 @@ const ModulesView: React.FC = () => {
       };
 
       const response = await axios.post(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
         payload,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -138,7 +139,7 @@ const ModulesView: React.FC = () => {
       };
 
       const response = await axios.put(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules/${editingModule.id}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules/${editingModule.id}`),
         payload,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -166,7 +167,7 @@ const ModulesView: React.FC = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.put(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules/${moduleId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules/${moduleId}`),
         data,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -187,7 +188,7 @@ const ModulesView: React.FC = () => {
     try {
       const token = await getToken({ template: "default" });
       await axios.delete(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules/${moduleId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules/${moduleId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -206,7 +207,7 @@ const ModulesView: React.FC = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/products`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/products`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }

@@ -75,21 +75,19 @@ app = FastAPI(
 
 # Configure CORS
 settings = get_settings()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # client-app
-        "http://localhost:3002",  # client-landing
-        "http://localhost:3003",  # sandbox client-app
-        "http://localhost:3004",  # sandbox client-app (alt port)
-        "http://localhost:3005",  # sandbox client-app (alt port 2)
-        "http://localhost:8080",  # temporal-webui
-        "http://localhost:8088",  # temporal-webui-alt
-    ],
+
+cors_kwargs = dict(
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Only set regex when provided (e.g., in production); empty string disables it
+if getattr(settings, "cors_origin_regex", ""):
+    cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 # Health check endpoint (under /api for consistent routing)
 @app.get("/api/health")

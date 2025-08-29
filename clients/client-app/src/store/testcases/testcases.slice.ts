@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { apiUrl } from '../../utils/api';
 
 export interface TestCase {
   id: number;
@@ -65,8 +66,7 @@ export const fetchTestCases = createAsyncThunk(
       }
     });
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const url = `${apiUrl}/api/v1/workspaces/${workspaceId}/testcases/?${query}`;
+    const url = `${apiUrl(`/api/v1/workspaces/${workspaceId}/testcases`)}/?${query}`;
     
     const response = await fetch(url, {
       headers: {
@@ -87,15 +87,14 @@ export const fetchTestCases = createAsyncThunk(
 
 export const fetchTestCase = createAsyncThunk(
   "testcases/fetchTestCase",
-  async (params: { workspaceId: number; testcaseId: number }) => {
-    const { workspaceId, testcaseId } = params;
+  async (params: { workspaceId: number; testcaseId: number; token: string }) => {
+    const { workspaceId, testcaseId, token } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`),
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -124,9 +123,8 @@ export const createTestCase = createAsyncThunk(
   }) => {
     const { workspaceId, testcase } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/testcases`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/testcases`),
       {
         method: "POST",
         headers: {
@@ -151,20 +149,19 @@ export const updateTestCase = createAsyncThunk(
   async (params: {
     workspaceId: number;
     testcaseId: number;
-    updates: {
-      name?: string;
-      test_method?: string;
-      expected_results?: string;
-      execution_mode?: string;
-      notes?: string;
-      metadata?: any;
-    };
+    updates: Partial<{
+      name: string;
+      test_method: string;
+      expected_results: string;
+      execution_mode: string;
+      notes: string;
+      metadata: any;
+    }>;
   }) => {
     const { workspaceId, testcaseId, updates } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`),
       {
         method: "PUT",
         headers: {
@@ -189,9 +186,8 @@ export const deleteTestCase = createAsyncThunk(
   async (params: { workspaceId: number; testcaseId: number }) => {
     const { workspaceId, testcaseId } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`),
       {
         method: "DELETE",
         headers: {
@@ -213,25 +209,23 @@ export const createTestRun = createAsyncThunk(
   async (params: {
     workspaceId: number;
     testcaseId: number;
-    testrun: {
-      result: string;
-      executor_id?: number;
-      executed_at: string;
+    runData: {
+      status: string;
+      notes?: string;
       metadata?: any;
     };
   }) => {
-    const { workspaceId, testcaseId, testrun } = params;
+    const { workspaceId, testcaseId, runData } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}/runs`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}/runs`),
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
         },
-        body: JSON.stringify(testrun),
+        body: JSON.stringify(runData),
       }
     );
 
@@ -240,7 +234,7 @@ export const createTestRun = createAsyncThunk(
     }
 
     const data = await response.json();
-    return { testcaseId, testrun: data.data };
+    return data.data;
   }
 );
 

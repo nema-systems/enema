@@ -15,6 +15,7 @@ import {
 } from "../store/testcases/testcases.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import TestCasesModal, { TestCasesFormData } from "../components/modals/test-cases-modal";
+import { apiUrl } from "../utils/api";
 
 const TestCasesView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -54,7 +55,7 @@ const TestCasesView: React.FC = () => {
 
         // Fetch requirements for assignment
         try {
-          const response = await fetch(`http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`, {
+          const response = await fetch(apiUrl(`/api/v1/workspaces/${workspaceId}/requirements`), {
             headers: {
               'Authorization': `Bearer ${token}`,
             },

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from "@heroicons/react/24/outline";
 import { DocumentTextIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 import { useAuth } from "@clerk/clerk-react";
 import axios from "axios";
+import { apiUrl } from "../../utils/api";
 import SearchableSingleSelect from "../ui/searchable-single-select";
 
 interface ReqCollection {
@@ -55,6 +56,9 @@ export interface RequirementFormData {
   rationale?: string;
   notes?: string;
   parent_req_id?: number;
+  create_new_req_collection?: boolean;
+  new_req_collection_name?: string;
+  metadata?: any;
 }
 
 const REQUIREMENT_OPTIONS = {
@@ -129,7 +133,7 @@ const RequirementCreationModal = ({
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements/`),
         {
           headers: { Authorization: `Bearer ${token}` },
           params: {

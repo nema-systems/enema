@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { apiUrl } from '../../utils/api';
 
 export interface Asset {
   id: number;
@@ -49,8 +50,7 @@ export const fetchAssets = createAsyncThunk(
       }
     });
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const url = `${apiUrl}/api/v1/workspaces/${workspaceId}/assets/?${query}`;
+    const url = `${apiUrl(`/api/v1/workspaces/${workspaceId}/assets`)}/?${query}`;
     
     const response = await fetch(url, {
       headers: {
@@ -74,19 +74,18 @@ export const uploadAsset = createAsyncThunk(
   async (params: {
     workspaceId: number;
     file: File;
-    name?: string;
-    description?: string;
+    metadata?: any;
   }) => {
-    const { workspaceId, file, name, description } = params;
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    if (name) formData.append('name', name);
-    if (description) formData.append('description', description);
+    const { workspaceId, file, metadata } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const formData = new FormData();
+    formData.append("file", file);
+    if (metadata) {
+      formData.append("metadata", JSON.stringify(metadata));
+    }
+
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/assets`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/assets`),
       {
         method: "POST",
         headers: {
@@ -110,16 +109,16 @@ export const updateAsset = createAsyncThunk(
   async (params: {
     workspaceId: number;
     assetId: number;
-    updates: {
-      name?: string;
-      description?: string;
-    };
+    updates: Partial<{
+      name: string;
+      description: string;
+      metadata: any;
+    }>;
   }) => {
     const { workspaceId, assetId, updates } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/assets/${assetId}`),
       {
         method: "PUT",
         headers: {
@@ -144,9 +143,8 @@ export const deleteAsset = createAsyncThunk(
   async (params: { workspaceId: number; assetId: number }) => {
     const { workspaceId, assetId } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/assets/${assetId}`),
       {
         method: "DELETE",
         headers: {
@@ -165,12 +163,11 @@ export const deleteAsset = createAsyncThunk(
 
 export const downloadAsset = createAsyncThunk(
   "assets/downloadAsset",
-  async (params: { workspaceId: number; assetId: number; assetName: string }) => {
-    const { workspaceId, assetId, assetName } = params;
+  async (params: { workspaceId: number; assetId: number }) => {
+    const { workspaceId, assetId } = params;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(
-      `${apiUrl}/api/v1/workspaces/${workspaceId}/assets/${assetId}/download`,
+      apiUrl(`/api/v1/workspaces/${workspaceId}/assets/${assetId}/download`),
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
@@ -182,18 +179,7 @@ export const downloadAsset = createAsyncThunk(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Create download link
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = assetName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-
-    return assetId;
+    return response.blob();
   }
 );
 

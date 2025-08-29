@@ -11,6 +11,7 @@ import ErrorMessage from "../components/ui/error-message";
 import { CubeTransparentIcon, PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import DeleteReqCollectionModal from "../components/modals/delete-req-collection-modal";
 import ReqCollectionModal, { ReqCollectionFormData } from "../components/modals/req-collection-modal";
+import { apiUrl } from "../utils/api";
 
 const ReqCollectionsView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -54,7 +55,7 @@ const ReqCollectionsView: React.FC = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -76,7 +77,7 @@ const ReqCollectionsView: React.FC = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -95,35 +96,18 @@ const ReqCollectionsView: React.FC = () => {
       setIsSubmittingModal(true);
       const token = await getToken({ template: "default" });
       
-      if (editingCollection) {
-        // Update existing collection
-        const response = await axios.put(
-          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${editingCollection.id}`,
-          {
-            name: formData.name.trim(),
-            metadata: formData.metadata,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        
-        dispatch(updateReqCollection(response.data.data));
-      } else {
-        // Create new collection
-        const response = await axios.post(
-          `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections`,
-          {
-            name: formData.name.trim(),
-            metadata: formData.metadata,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        
-        dispatch(addReqCollection(response.data.data));
-      }
+      const response = await axios.post(
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections`),
+        {
+          name: formData.name.trim(),
+          metadata: formData.metadata,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      dispatch(addReqCollection(response.data.data));
       
       setIsModalOpen(false);
       setEditingCollection(null);
@@ -135,6 +119,33 @@ const ReqCollectionsView: React.FC = () => {
     }
   };
 
+  const handleUpdateReqCollection = async (reqCollectionId: number, updates: Partial<ReqCollection>) => {
+    if (!workspaceId) return;
+    
+    try {
+      const token = await getToken({ template: "default" });
+      const response = await axios.put(
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections/${editingCollection.id}`),
+        updates,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+        }
+      );
+      
+      // Update in local state
+      const updatedCollection = response.data.data;
+      dispatch(updateReqCollection({ id: reqCollectionId, updates: updatedCollection }));
+      
+      setIsModalOpen(false);
+      setEditingCollection(null);
+    } catch (err: any) {
+      console.error("Error updating requirement collection:", err);
+      dispatch(setError(err.response?.data?.message || "Failed to update requirement collection"));
+    }
+  };
 
   const deleteReqCollectionData = async () => {
     if (!workspaceId || !deletingCollection) return;
@@ -143,7 +154,7 @@ const ReqCollectionsView: React.FC = () => {
       setIsDeletingCollection(true);
       const token = await getToken({ template: "default" });
       await axios.delete(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/req_collections/${deletingCollection.id}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections/${deletingCollection.id}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }

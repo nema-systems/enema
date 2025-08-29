@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, MagnifyingGlassIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { AdjustmentsHorizontalIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/solid";
 import { useAuth } from "@clerk/clerk-react";
+import axios from "axios";
+import { apiUrl } from "../../utils/api";
 
 interface ParametersModalProps {
   isOpen: boolean;
@@ -118,43 +120,26 @@ const ParametersModal = ({ isOpen, onClose, onSubmit, isLoading = false, editPar
 
   // Debounced server-side search
   const searchRequirements = useCallback(async (searchTerm: string) => {
-    if (!searchTerm.trim() || searchTerm.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearchLoading(true);
-    setSearchError("");
-
+    if (!searchTerm.trim() || !workspaceId) return [];
+    
     try {
       const token = await getToken({ template: "default" });
-      const response = await fetch(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements?search=${encodeURIComponent(searchTerm)}&limit=10`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-
+      const response = await fetch(apiUrl(`/api/v1/workspaces/${workspaceId}/requirements?search=${encodeURIComponent(searchTerm)}&limit=10`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
       if (response.ok) {
         const data = await response.json();
-        const requirements = data.data?.items || [];
-        // Filter out already selected requirements
-        const filteredResults = requirements.filter(
-          (req: Requirement) => !selectedRequirements.some(selected => selected.id === req.id)
-        );
-        setSearchResults(filteredResults);
-      } else {
-        setSearchError("Failed to search requirements");
+        return data.data?.items || [];
       }
     } catch (error) {
       console.error('Failed to search requirements:', error);
-      setSearchError("Search failed");
-    } finally {
-      setSearchLoading(false);
     }
-  }, [workspaceId, getToken, selectedRequirements]);
+    
+    return [];
+  }, [workspaceId, getToken]);
 
   // Debounce search
   useEffect(() => {

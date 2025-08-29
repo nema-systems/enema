@@ -25,6 +25,18 @@ async def init_database(database_url: str):
     elif not database_url.startswith("postgresql+asyncpg://"):
         logger.warning("Database URL should use postgresql+asyncpg:// for async support")
     
+    # Prepare connect_args with basic server settings
+    connect_args = {
+        "server_settings": {
+            "application_name": "nema-core",
+            "jit": "off"  # Disable JIT for better cold start performance
+        }
+    }
+    
+    # Note: SSL parameters like sslmode and channel_binding are not supported
+    # by SQLAlchemy with asyncpg. These should be handled by the connection URL
+    # or let asyncpg use its default SSL behavior.
+    
     # Create async engine with cloud deployment settings
     engine = create_async_engine(
         database_url,
@@ -34,12 +46,7 @@ async def init_database(database_url: str):
         pool_pre_ping=True,  # Validate connections before use
         pool_recycle=3600,   # Recycle connections after 1 hour
         # Additional cloud-friendly settings
-        connect_args={
-            "server_settings": {
-                "application_name": "nema-core",
-                "jit": "off"  # Disable JIT for better cold start performance
-            }
-        }
+        connect_args=connect_args
     )
     
     # Create session factory

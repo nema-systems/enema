@@ -49,7 +49,6 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, alias="API_PORT")
     
     # Frontend URLs
-    client_app_url: str = Field(default="http://localhost:3000", alias="CLIENT_APP_URL")
     client_admin_url: str = Field(default="http://localhost:3001", alias="CLIENT_ADMIN_URL")
     client_landing_url: str = Field(default="http://localhost:3002", alias="CLIENT_LANDING_URL")
     
@@ -87,11 +86,11 @@ class Settings(BaseSettings):
         """Get CORS origins based on environment"""
         if self.is_production:
             # In production, be more restrictive
-            return [
-                self.client_app_url,
-                self.client_admin_url, 
-                self.client_landing_url
+            origins = [
+                "https://nema-frontend.vercel.app",  # Main Vercel frontend
             ]
+            # Filter out None/empty values
+            return [origin for origin in origins if origin]
         else:
             # In development, allow all localhost ports
             return [
@@ -101,6 +100,19 @@ class Settings(BaseSettings):
                 "http://localhost:8080",
                 "http://localhost:8081"
             ]
+    
+    @property
+    def cors_origin_regex(self) -> str:
+        """Get CORS origin regex pattern for flexible matching"""
+        if self.is_production:
+            # Allow Vercel domains with pattern matching including wildcards
+            # Matches: nema-frontend.vercel.app, nema-systems.vercel.app
+            # And preview URLs like: nema-frontend-mth9k6kx2-nema-systems.vercel.app
+            return r"^https://(?:nema-frontend|nema-systems)(?:-[a-zA-Z0-9]+)*(?:-nema-systems)?\.vercel\.app$"
+        else:
+            # No regex for development
+            return ""
+
 
 
 # Global settings instance
