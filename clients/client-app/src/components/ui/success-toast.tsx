@@ -3,7 +3,7 @@ import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import { CubeIcon, CubeTransparentIcon, EyeIcon } from "@heroicons/react/24/outline";
 
 interface CreatedResource {
-  type: 'module' | 'req_collection';
+  type: 'module';
   id: number;
   name: string;
 }
@@ -81,11 +81,7 @@ const SuccessToast = ({
                 <div className="space-y-1">
                   {createdResources.map((resource, index) => (
                     <div key={index} className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-                      {resource.type === 'module' ? (
-                        <CubeIcon className="h-4 w-4 mr-2 text-blue-500" />
-                      ) : (
-                        <CubeTransparentIcon className="h-4 w-4 mr-2 text-green-500" />
-                      )}
+                      <CubeIcon className="h-4 w-4 mr-2 text-blue-500" />
                       <span className="truncate">{resource.name}</span>
                     </div>
                   ))}
@@ -139,17 +135,18 @@ const SuccessToast = ({
         {autoClose && isVisible && !isClosing && (
           <div className="h-1 bg-gray-200 dark:bg-gray-700">
             <div 
-              className="h-full bg-green-500 transition-all ease-linear"
+              className="h-full bg-green-500"
               style={{ 
                 width: '100%',
-                animation: `shrink ${autoCloseDelay}ms linear forwards`
+                animation: `shrink ${autoCloseDelay}ms linear forwards`,
+                transformOrigin: 'left'
               }}
             />
           </div>
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes shrink {
           from { width: 100%; }
           to { width: 0%; }

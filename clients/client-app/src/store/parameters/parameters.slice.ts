@@ -76,6 +76,7 @@ export const createParameter = createAsyncThunk(
   "parameters/createParameter",
   async (params: {
     workspaceId: number;
+    token: string;
     parameter: {
       name: string;
       value: string;
@@ -84,7 +85,7 @@ export const createParameter = createAsyncThunk(
       metadata?: any;
     };
   }) => {
-    const { workspaceId, parameter } = params;
+    const { workspaceId, token, parameter } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/parameters`),
@@ -92,7 +93,7 @@ export const createParameter = createAsyncThunk(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(parameter),
       }
@@ -111,6 +112,7 @@ export const updateParameter = createAsyncThunk(
   "parameters/updateParameter",
   async (params: {
     workspaceId: number;
+    token: string;
     parameterId: number;
     updates: Partial<{
       name: string;
@@ -120,7 +122,7 @@ export const updateParameter = createAsyncThunk(
       metadata: any;
     }>;
   }) => {
-    const { workspaceId, parameterId, updates } = params;
+    const { workspaceId, token, parameterId, updates } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/parameters/${parameterId}`),
@@ -128,7 +130,7 @@ export const updateParameter = createAsyncThunk(
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(updates),
       }
@@ -145,15 +147,15 @@ export const updateParameter = createAsyncThunk(
 
 export const deleteParameter = createAsyncThunk(
   "parameters/deleteParameter",
-  async (params: { workspaceId: number; parameterId: number }) => {
-    const { workspaceId, parameterId } = params;
+  async (params: { workspaceId: number; token: string; parameterId: number }) => {
+    const { workspaceId, token, parameterId } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/parameters/${parameterId}`),
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -170,6 +172,7 @@ export const createParameterVersion = createAsyncThunk(
   "parameters/createParameterVersion",
   async (params: {
     workspaceId: number;
+    token: string;
     parameterId: number;
     version: {
       name?: string;
@@ -180,7 +183,7 @@ export const createParameterVersion = createAsyncThunk(
       metadata?: any;
     };
   }) => {
-    const { workspaceId, parameterId, version } = params;
+    const { workspaceId, token, parameterId, version } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/parameters/${parameterId}/versions`),
@@ -188,7 +191,7 @@ export const createParameterVersion = createAsyncThunk(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(version),
       }

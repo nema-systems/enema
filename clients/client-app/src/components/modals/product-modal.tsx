@@ -17,7 +17,6 @@ interface ProductModalProps {
 
 interface Module extends SelectableItem {
   workspace_id: number;
-  req_collection_id: number;
   description: string | null;
   rules: string | null;
   shared: boolean;
@@ -32,12 +31,24 @@ interface Product {
   description: string | null;
   metadata: any;
   created_at: string;
+  default_module?: {
+    id: number;
+    name: string;
+    description?: string;
+    shared: boolean;
+  };
+  modules?: {
+    id: number;
+    name: string;
+    description?: string;
+    shared: boolean;
+  }[];
 }
 
 export interface ProductFormData {
   name: string;
   description: string;
-  selected_module_ids?: number[]; // Shared modules to associate with product
+  selected_module_ids?: number[]; // Additional shared modules to associate with product (excluding default module)
 }
 
 const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduct, workspaceId }: ProductModalProps) => {
@@ -60,9 +71,15 @@ const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduc
       setFormData({
         name: editProduct.name,
         description: editProduct.description || "",
-        selected_module_ids: [], // TODO: Load existing associated modules
+        selected_module_ids: (editProduct.modules || []).map(m => m.id),
       });
-      setSelectedModules([]); // TODO: Load existing associated modules
+      // Convert modules to SelectableItem format
+      const modules = (editProduct.modules || []).map(module => ({
+        ...module,
+        name: module.name || 'Unnamed Module',
+        description: module.description || null
+      }));
+      setSelectedModules(modules);
     } else {
       setFormData({
         name: "",
@@ -243,52 +260,77 @@ const ProductModal = ({ isOpen, onClose, onSubmit, isLoading = false, editProduc
                 />
               </div>
 
-              {/* Shared Module Selection - only show for new products */}
-              {!editProduct && (
-                <div className="bg-green-50/70 dark:bg-green-900/30 backdrop-blur border border-green-200/40 dark:border-green-800/40 rounded-lg p-4">
-                  <div className="mb-3">
-                    <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Add Existing Shared Modules (Optional)</h4>
-                    <p className="text-green-700 dark:text-green-300 text-sm mb-3">
-                      Search and select existing shared modules to include in this product.
+              {/* Associated Module Selection */}
+              <div className="bg-green-50/70 dark:bg-green-900/30 backdrop-blur border border-green-200/40 dark:border-green-800/40 rounded-lg p-4">
+                <div className="mb-3">
+                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">
+                    {editProduct ? "Manage Associated Modules" : "Add Existing Shared Modules (Optional)"}
+                  </h4>
+                  <p className="text-green-700 dark:text-green-300 text-sm mb-3">
+                    {editProduct 
+                      ? "Add or remove additional shared modules. The default module cannot be removed." 
+                      : "Search and select existing shared modules to include in this product."}
+                  </p>
+                  
+                  <SearchableMultiSelect
+                    selectedItems={selectedModules}
+                    onSelectionChange={setSelectedModules}
+                    searchFunction={searchModules}
+                    placeholder="Search shared modules..."
+                    noResultsText="No shared modules found"
+                    loadingText="Searching modules..."
+                    disabled={isLoading}
+                    className="w-full"
+                  />
+                  
+                  {editProduct && selectedModules.length === 0 && (
+                    <p className="text-green-600 dark:text-green-400 text-xs mt-2">
+                      No additional modules are currently associated with this product.
                     </p>
-                    
-                    <SearchableMultiSelect
-                      selectedItems={selectedModules}
-                      onSelectionChange={setSelectedModules}
-                      searchFunction={searchModules}
-                      placeholder="Search shared modules..."
-                      noResultsText="No shared modules found"
-                      loadingText="Searching modules..."
-                      disabled={isLoading}
-                      className="w-full"
-                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Info about setup */}
+              {!editProduct && (
+                <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur border border-blue-200/40 dark:border-blue-800/40 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="ml-0 text-sm">
+                      <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                        🚀 Automatic Setup
+                      </p>
+                      <p className="text-blue-700 dark:text-blue-300 mb-2">
+                        Creating a product will automatically set up:
+                      </p>
+                      <ul className="space-y-1 text-blue-600 dark:text-blue-400">
+                        <li className="flex items-center">
+                          <CubeIcon className="h-4 w-4 mr-2" />
+                          A base module for organizing requirements
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               )}
-
-              {/* Info about automatic setup */}
-              <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur border border-blue-200/40 dark:border-blue-800/40 rounded-lg p-4">
-                <div className="flex items-start">
-                  <div className="ml-0 text-sm">
-                    <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">
-                      🚀 Automatic Setup
-                    </p>
-                    <p className="text-blue-700 dark:text-blue-300 mb-2">
-                      Creating a product will automatically set up:
-                    </p>
-                    <ul className="space-y-1 text-blue-600 dark:text-blue-400">
-                      <li className="flex items-center">
-                        <CubeIcon className="h-4 w-4 mr-2" />
-                        A base module for organizing requirements
-                      </li>
-                      <li className="flex items-center">
-                        <DocumentTextIcon className="h-4 w-4 mr-2" />
-                        A requirements collection for storing requirements
-                      </li>
-                    </ul>
+              
+              {/* Info about default module for editing */}
+              {editProduct && editProduct.default_module && (
+                <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur border border-blue-200/40 dark:border-blue-800/40 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="ml-0 text-sm">
+                      <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                        📦 Default Module
+                      </p>
+                      <p className="text-blue-700 dark:text-blue-300 mb-1">
+                        This product has a default module: <span className="font-medium">{editProduct.default_module.name}</span>
+                      </p>
+                      <p className="text-blue-600 dark:text-blue-400 text-xs">
+                        The default module cannot be removed and is used to organize core requirements for this product.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
             
           </div>

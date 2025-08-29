@@ -126,7 +126,7 @@ def create_product(workspace_id, name, description):
         payload = {
             "name": name,
             "description": description,
-            "create_defaults": True
+            "create_default_module": True
         }
         response = requests.post(
             f"{API_BASE}/workspaces/{workspace_id}/products",
@@ -141,9 +141,7 @@ def create_product(workspace_id, name, description):
         return None
 
 def create_module(workspace_id, name, description):
-    """Create a module via API
-    Note: All modules except the product's default/base module should be shared=True
-    """
+    """Create a module via API"""
     try:
         headers = get_headers()
         if not headers:
@@ -151,9 +149,7 @@ def create_module(workspace_id, name, description):
         payload = {
             "name": name,
             "description": description,
-            "shared": True,  # All modules except base module should be shared
-            "create_new_req_collection": True,
-            "new_req_collection_name": f"{name} Requirements"
+            "shared": True  # All modules should be shared
         }
         response = requests.post(
             f"{API_BASE}/workspaces/{workspace_id}/modules",
@@ -167,29 +163,8 @@ def create_module(workspace_id, name, description):
         print(f"Response: {response.text if 'response' in locals() else 'N/A'}")
         return None
 
-def create_req_collection(workspace_id, name, description):
-    """Create a requirement collection via API"""
-    try:
-        headers = get_headers()
-        if not headers:
-            return None
-        payload = {
-            "name": name,
-            "metadata": {"description": description}
-        }
-        response = requests.post(
-            f"{API_BASE}/workspaces/{workspace_id}/req_collections",
-            headers=headers,
-            json=payload
-        )
-        response.raise_for_status()
-        return response.json()["data"]
-    except Exception as e:
-        print(f"❌ Error creating req collection '{name}': {e}")
-        print(f"Response: {response.text if 'response' in locals() else 'N/A'}")
-        return None
 
-def create_requirement(workspace_id, name, definition, req_collection_id, level, parent_id=None):
+def create_requirement(workspace_id, name, definition, module_id, level, parent_id=None):
     """Create a requirement via API"""
     try:
         headers = get_headers()
@@ -198,7 +173,7 @@ def create_requirement(workspace_id, name, definition, req_collection_id, level,
         payload = {
             "name": name,
             "definition": definition,
-            "req_collection_id": req_collection_id,
+            "module_id": module_id,
             "level": level,
             "priority": "medium",  # Default priority
             "functional": "functional",  # Default to functional
@@ -244,17 +219,6 @@ def create_submarine_project():
     product_id = product_data["id"]
     print(f"✅ Created submarine product with ID: {product_id}")
     
-    # Create base requirement collection
-    base_req_collection = create_req_collection(
-        workspace_id,
-        "Submarine Requirements",
-        "Main requirement collection for submarine project"
-    )
-    
-    if not base_req_collection:
-        return
-        
-    print(f"✅ Created base requirement collection with ID: {base_req_collection['id']}")
     
     # Create modules and their hierarchical requirements
     for module_name, module_data in SUBMARINE_MODULES.items():
@@ -266,9 +230,7 @@ def create_submarine_project():
             continue
             
         module_id = module["id"]
-        req_collection_id = module["req_collection_id"]  # Module creation creates the req collection
         print(f"  ✅ Created module with ID: {module_id}")
-        print(f"  ✅ Created requirement collection with ID: {req_collection_id}")
         
         # Create hierarchical requirements L0-L5
         parent_req_id = None
@@ -280,7 +242,7 @@ def create_submarine_project():
                 workspace_id,
                 req_data["name"],
                 req_data["desc"],
-                req_collection_id,
+                module_id,
                 level,
                 parent_req_id
             )
@@ -300,9 +262,7 @@ def create_submarine_project():
     print(f"\n🎉 Submarine project created successfully!")
     print(f"📊 Summary:")
     print(f"   - Product ID: {product_id}")
-    print(f"   - Base Requirement Collection ID: {base_req_collection['id']}")
     print(f"   - Created {len(SUBMARINE_MODULES)} modules")
-    print(f"   - Created {len(SUBMARINE_MODULES)} module requirement collections")
     print(f"   - Created {len(SUBMARINE_MODULES) * 6} requirements (L0-L5 for each module)")
 
 if __name__ == "__main__":

@@ -7,11 +7,8 @@ interface DeletionPreview {
     id: number;
     name: string;
     description?: string;
-  }>;
-  req_collections: Array<{
-    id: number;
-    name: string;
     requirements_count: number;
+    is_default?: boolean;
   }>;
   requirements_count: number;
 }
@@ -140,48 +137,42 @@ const DeleteConfirmationModal = ({
                             <p className="text-sm text-red-700 dark:text-red-300 font-medium">
                               Modules ({deletionPreview.modules.length}):
                             </p>
-                            <ul className="ml-4 text-sm text-red-600 dark:text-red-400 space-y-1">
+                            <ul className="ml-4 text-sm text-red-600 dark:text-red-400 space-y-2">
                               {deletionPreview.modules.map((module) => (
-                                <li key={module.id} className="flex items-center">
-                                  <span className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></span>
-                                  <span className="font-medium">{module.name}</span>
-                                  {module.description && (
-                                    <span className="ml-2 text-xs opacity-75">- {module.description}</span>
-                                  )}
+                                <li key={module.id} className="flex flex-col">
+                                  <div className="flex items-center">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></span>
+                                    <span className="font-medium">{module.name}</span>
+                                    {module.is_default && (
+                                      <span className="ml-2 px-1.5 py-0.5 text-xs bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 rounded">
+                                        Default Module
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="ml-4 text-xs text-red-500 dark:text-red-400">
+                                    Contains {module.requirements_count} requirement{module.requirements_count !== 1 ? 's' : ''}
+                                  </div>
                                 </li>
                               ))}
                             </ul>
                           </div>
                         )}
                         
-                        {deletionPreview.req_collections.length > 0 && (
-                          <div className="ml-2">
-                            <p className="text-sm text-red-700 dark:text-red-300 font-medium">
-                              Requirement Collections ({deletionPreview.req_collections.length}):
-                            </p>
-                            <ul className="ml-4 text-sm text-red-600 dark:text-red-400 space-y-1">
-                              {deletionPreview.req_collections.map((collection) => (
-                                <li key={collection.id} className="flex items-center">
-                                  <span className="w-2 h-2 bg-red-500 rounded-full mr-2 flex-shrink-0"></span>
-                                  <span className="font-medium">{collection.name}</span>
-                                  <span className="ml-2 text-xs opacity-75">
-                                    ({collection.requirements_count} requirement{collection.requirements_count !== 1 ? 's' : ''})
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
                         
-                        {deletionPreview.requirements_count > 0 && (
+                        {deletionPreview.modules.length > 0 && (
                           <div className="ml-2 mt-2 p-2 bg-red-100/70 dark:bg-red-900/40 backdrop-blur rounded-lg border border-red-200/40 dark:border-red-800/40">
                             <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                              Total Requirements: <span className="font-bold">{deletionPreview.requirements_count}</span>
+                              Total Requirements to Delete: <span className="font-bold">{deletionPreview.requirements_count}</span>
                             </p>
+                            {deletionPreview.requirements_count === 0 && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                No requirements will be lost, but the module structure will be removed.
+                              </p>
+                            )}
                           </div>
                         )}
                         
-                        {deletionPreview.modules.length === 0 && deletionPreview.req_collections.length === 0 && (
+                        {deletionPreview.modules.length === 0 && (
                           <p className="text-sm text-red-600 dark:text-red-400 ml-2">
                             No additional resources will be deleted.
                           </p>

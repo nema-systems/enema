@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { XMarkIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from "@heroicons/react/24/outline";
-import { CubeIcon, DocumentTextIcon } from "@heroicons/react/24/solid";
-import { useAuth } from "@clerk/clerk-react";
-import axios from "axios";
-import { apiUrl } from "../../utils/api";
-
-interface ReqCollection {
-  id: number;
-  name: string;
-  metadata?: any;
-}
+import { CubeIcon } from "@heroicons/react/24/solid";
 
 interface ModuleModalProps {
   isOpen: boolean;
@@ -23,7 +14,6 @@ interface ModuleModalProps {
 interface Module {
   id: number;
   workspace_id: number;
-  req_collection_id: number;
   name: string;
   description?: string;
   rules?: string;
@@ -36,24 +26,16 @@ export interface ModuleFormData {
   name: string;
   description: string;
   rules: string;
-  shared: boolean;
-  req_collection_id?: number;
-  create_new_req_collection: boolean;
-  new_req_collection_name?: string;
+  // shared is always true for manually created modules
 }
 
 const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId, editModule }: ModuleModalProps) => {
-  const { getToken } = useAuth();
-  const [availableCollections, setAvailableCollections] = useState<ReqCollection[]>([]);
-  const [loadingCollections, setLoadingCollections] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   const [formData, setFormData] = useState<ModuleFormData>({
     name: "",
     description: "",
     rules: "Default module rules - customize as needed",
-    shared: true, // All manually created modules are shared
-    create_new_req_collection: false,
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -65,68 +47,15 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
         name: editModule.name,
         description: editModule.description || "",
         rules: editModule.rules || "Default module rules - customize as needed",
-        shared: editModule.shared,
-        create_new_req_collection: false,
-        req_collection_id: editModule.req_collection_id,
       });
     } else {
       setFormData({
         name: "",
         description: "",
         rules: "Default module rules - customize as needed",
-        shared: true, // All manually created modules are shared
-        create_new_req_collection: false,
       });
     }
   }, [editModule]);
-
-  // Fetch available req collections when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchAvailableCollections();
-    }
-  }, [isOpen]);
-
-  const fetchAvailableCollections = async () => {
-    try {
-      setLoadingCollections(true);
-      const token = await getToken({ template: "default" });
-      
-      // Get all req collections
-      const collectionsResponse = await axios.get(
-        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections`),
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      
-      // Get all modules to find which req collections are already used
-      const modulesResponse = await axios.get(
-        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      
-      const allCollections = collectionsResponse.data.data?.items || [];
-      const allModules = modulesResponse.data.data?.items || [];
-      
-      // Filter out req collections that are already used by existing modules
-      const usedCollections = allModules.map((module: any) => module.req_collection_id);
-      
-      const availableCollections = allCollections.filter(
-        (collection: ReqCollection) => !usedCollections.includes(collection.id)
-      );
-      
-      setAvailableCollections(availableCollections);
-    } catch (err) {
-      console.error("Error fetching collections:", err);
-      setAvailableCollections([]);
-    } finally {
-      setLoadingCollections(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -137,37 +66,23 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
       newErrors.name = "Module name is required";
     }
     
-    if (!formData.description.trim()) {
-      newErrors.description = "Description is required";
-    }
-    
-    // Only validate req collection for new modules, not when editing
-    if (!editModule && !formData.create_new_req_collection && !formData.req_collection_id) {
-      newErrors.req_collection = "Please select a requirements collection or create a new one";
-    }
-    
-    if (formData.create_new_req_collection && !formData.new_req_collection_name?.trim()) {
-      newErrors.new_req_collection_name = "New collection name is required";
-    }
-    
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
     
     setErrors({});
-    await onSubmit(formData);
+    // All manually created modules are shared
+    await onSubmit({ ...formData, shared: true });
   };
 
   const handleClose = () => {
     if (!isLoading) {
       if (!editModule) {
-        setFormData({ 
-          name: "", 
-          description: "", 
+        setFormData({
+          name: "",
+          description: "",
           rules: "Default module rules - customize as needed",
-          shared: true, // Always true for manually created modules
-          create_new_req_collection: false,
         });
       }
       setErrors({});
@@ -240,7 +155,7 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
               {/* Module Description */}
               <div>
                 <label htmlFor="module-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description *
+                  Description
                 </label>
                 <textarea
                   id="module-description"
@@ -248,157 +163,40 @@ const ModuleModal = ({ isOpen, onClose, onSubmit, isLoading = false, workspaceId
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   disabled={isLoading}
                   rows={3}
-                  className={`w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white ${
-                    errors.description ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
-                  } disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200`}
-                  placeholder="Enter module description"
+                  className="w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-300/50 dark:border-gray-600/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200"
+                  placeholder="Enter module description (optional)"
                 />
-                {errors.description && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.description}</p>
-                )}
               </div>
 
               {/* Module Rules */}
               <div>
                 <label htmlFor="module-rules" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Rules
+                  Rules & Guidelines
                 </label>
                 <textarea
                   id="module-rules"
                   value={formData.rules}
                   onChange={(e) => setFormData({ ...formData, rules: e.target.value })}
                   disabled={isLoading}
-                  rows={2}
+                  rows={4}
                   className="w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-300/50 dark:border-gray-600/50 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200"
-                  placeholder="Enter module rules"
+                  placeholder="Enter module rules and guidelines"
                 />
               </div>
 
-
-              {/* Requirements Collection Setup - only show for new modules */}
-              {!editModule && (
-                <div className="bg-green-50/70 dark:bg-green-900/30 backdrop-blur border border-green-200/40 dark:border-green-800/40 rounded-lg p-4">
-                <div className="mb-3">
-                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Requirements Collection</h4>
-                  
-                  {/* Create New Collection Option */}
-                  <div className="flex items-start mb-3">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="create-new-collection"
-                        type="radio"
-                        name="collection-option"
-                        checked={formData.create_new_req_collection}
-                        onChange={() => setFormData({ 
-                          ...formData, 
-                          create_new_req_collection: true, 
-                          req_collection_id: undefined 
-                        })}
-                        disabled={isLoading}
-                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 disabled:opacity-50"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="create-new-collection" className="font-medium text-green-900 dark:text-green-100">
-                        Create new requirements collection
-                      </label>
-                      <p className="text-green-700 dark:text-green-300">
-                        Create a fresh collection for this module's requirements
-                      </p>
-                    </div>
+              {/* Info about shared modules */}
+              <div className="bg-green-50/70 dark:bg-green-900/30 backdrop-blur border border-green-200/40 dark:border-green-800/40 rounded-lg p-4">
+                <div className="flex items-center">
+                  <CubeIcon className="h-5 w-5 text-green-600 dark:text-green-400 mr-3" />
+                  <div>
+                    <p className="font-medium text-green-900 dark:text-green-100">Shared Module</p>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      All manually created modules are shared and can be reused across multiple products
+                    </p>
                   </div>
-
-                  {/* New Collection Name Input */}
-                  {formData.create_new_req_collection && (
-                    <div className="ml-7 mb-3">
-                      <input
-                        type="text"
-                        value={formData.new_req_collection_name || ""}
-                        onChange={(e) => setFormData({ ...formData, new_req_collection_name: e.target.value })}
-                        disabled={isLoading}
-                        className={`w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 dark:text-white ${
-                          errors.new_req_collection_name ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
-                        } disabled:opacity-50 placeholder:text-gray-400/70 transition-all duration-200`}
-                        placeholder="Enter new collection name"
-                      />
-                      {errors.new_req_collection_name && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.new_req_collection_name}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Use Existing Collection Option */}
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="use-existing-collection"
-                        type="radio"
-                        name="collection-option"
-                        checked={!formData.create_new_req_collection}
-                        onChange={() => setFormData({ 
-                          ...formData, 
-                          create_new_req_collection: false, 
-                          new_req_collection_name: undefined 
-                        })}
-                        disabled={isLoading}
-                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 disabled:opacity-50"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="use-existing-collection" className="font-medium text-green-900 dark:text-green-100">
-                        Use existing requirements collection
-                      </label>
-                      <p className="text-green-700 dark:text-green-300">
-                        Select from available collections (excludes collections already in use)
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Existing Collection Dropdown */}
-                  {!formData.create_new_req_collection && (
-                    <div className="ml-7 mt-3">
-                      {loadingCollections ? (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
-                          Loading collections...
-                        </div>
-                      ) : (
-                        <>
-                          <select
-                            value={formData.req_collection_id || ""}
-                            onChange={(e) => setFormData({ 
-                              ...formData, 
-                              req_collection_id: e.target.value ? parseInt(e.target.value) : undefined 
-                            })}
-                            disabled={isLoading}
-                            className={`w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 dark:text-white ${
-                              errors.req_collection ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
-                            } disabled:opacity-50 transition-all duration-200`}
-                          >
-                            <option value="">Select a requirements collection...</option>
-                            {availableCollections.map((collection) => (
-                              <option key={collection.id} value={collection.id}>
-                                {collection.name}
-                              </option>
-                            ))}
-                          </select>
-                          {availableCollections.length === 0 && (
-                            <p className="mt-1 text-sm text-orange-600 dark:text-orange-400">
-                              No available collections. All existing collections are already in use by other modules.
-                            </p>
-                          )}
-                          {errors.req_collection && (
-                            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.req_collection}</p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
-              )}
             </div>
-            
           </div>
         </div>
 

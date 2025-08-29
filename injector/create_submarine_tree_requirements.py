@@ -28,7 +28,7 @@ def get_headers():
         "Authorization": f"Bearer {token}"
     }
 
-def create_requirement(workspace_id, name, definition, req_collection_id, level, parent_id=None):
+def create_requirement(workspace_id, name, definition, module_id, level, parent_id=None):
     """Create a requirement via API"""
     try:
         headers = get_headers()
@@ -37,7 +37,7 @@ def create_requirement(workspace_id, name, definition, req_collection_id, level,
         payload = {
             "name": name,
             "definition": definition,
-            "req_collection_id": req_collection_id,
+            "module_id": module_id,
             "level": level,
             "priority": "medium",
             "functional": "functional",
@@ -59,8 +59,9 @@ def create_requirement(workspace_id, name, definition, req_collection_id, level,
         return None
 
 # Expanded submarine requirement tree structures
+# Note: These module IDs need to be updated based on actual module IDs in your workspace
 SUBMARINE_REQUIREMENT_TREES = {
-    22: {  # Hull & Structure req_collection_id
+    1: {  # Hull & Structure module_id (update with actual module ID)
         "module_name": "Hull & Structure",
         "tree": {
             "L0": [
@@ -154,7 +155,7 @@ SUBMARINE_REQUIREMENT_TREES = {
             ]
         }
     },
-    23: {  # Propulsion System req_collection_id  
+    2: {  # Propulsion System module_id (update with actual module ID)
         "module_name": "Propulsion System",
         "tree": {
             "L0": [
@@ -259,7 +260,7 @@ SUBMARINE_REQUIREMENT_TREES = {
             ]
         }
     },
-    24: {  # Navigation & Control req_collection_id
+    3: {  # Navigation & Control module_id (update with actual module ID)
         "module_name": "Navigation & Control",
         "tree": {
             "L0": [
@@ -395,7 +396,7 @@ def get_workspace_id():
         print(f"❌ Error fetching workspaces: {e}")
         return None
 
-def create_requirement_tree(workspace_id, req_collection_id, tree_node, level, parent_id=None):
+def create_requirement_tree(workspace_id, module_id, tree_node, level, parent_id=None):
     """Recursively create requirement tree"""
     created_requirements = []
     
@@ -405,7 +406,7 @@ def create_requirement_tree(workspace_id, req_collection_id, tree_node, level, p
             workspace_id,
             req_data["name"],
             req_data["definition"],
-            req_collection_id,
+            module_id,
             level,
             parent_id
         )
@@ -421,7 +422,7 @@ def create_requirement_tree(workspace_id, req_collection_id, tree_node, level, p
             if "children" in req_data:
                 for child_level, child_nodes in req_data["children"].items():
                     child_requirements = create_requirement_tree(
-                        workspace_id, req_collection_id, child_nodes, child_level, req_id
+                        workspace_id, module_id, child_nodes, child_level, req_id
                     )
                     created_requirements.extend(child_requirements)
         else:
@@ -441,14 +442,14 @@ def expand_submarine_requirements():
     
     total_created = 0
     
-    for req_collection_id, module_data in SUBMARINE_REQUIREMENT_TREES.items():
+    for module_id, module_data in SUBMARINE_REQUIREMENT_TREES.items():
         module_name = module_data["module_name"]
         print(f"\n🌿 Expanding {module_name} requirements...")
         
         # Create the tree starting from L0
         for level, nodes in module_data["tree"].items():
             requirements = create_requirement_tree(
-                workspace_id, req_collection_id, nodes, level
+                workspace_id, module_id, nodes, level
             )
             total_created += len(requirements)
         

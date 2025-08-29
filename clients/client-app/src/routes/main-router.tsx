@@ -7,9 +7,9 @@ import ParametersView from "./parameters-view";
 import TestCasesView from "./testcases-view";
 import AssetsView from "./assets-view";
 import RequirementDetail from "./requirement-detail";
-import ReqCollectionsView from "./req-collections-view";
-import CollectionDetailView from "./collection-detail-view";
+import ModuleDetail from "./module-detail";
 import AgentView from "./agent-view";
+import DevWorkspaceManager from "./dev-workspace-manager";
 import ApplicationShell from "../components/application-shell";
 import NemaLogo from "../icons/nema-logo";
 
@@ -18,10 +18,10 @@ const LoggedInMainRouter = () => {
     <ApplicationShell>
       <Routes>
         <Route path="/" element={<div className="p-6 text-center text-gray-500 dark:text-gray-400">Loading workspaces...</div>} />
+        <Route path="/dev/workspaces" element={<DevWorkspaceManager />} />
         <Route path="/workspace/:workspaceId/products" element={<ProductsView />} />
         <Route path="/workspace/:workspaceId/modules" element={<ModulesView />} />
-        <Route path="/workspace/:workspaceId/req_collections" element={<ReqCollectionsView />} />
-        <Route path="/workspace/:workspaceId/req_collections/:collectionId" element={<CollectionDetailView />} />
+        <Route path="/workspace/:workspaceId/modules/:moduleId" element={<ModuleDetail />} />
         <Route path="/workspace/:workspaceId/requirements" element={<RequirementsView />} />
         <Route path="/workspace/:workspaceId/parameters" element={<ParametersView />} />
         <Route path="/workspace/:workspaceId/testcases" element={<TestCasesView />} />

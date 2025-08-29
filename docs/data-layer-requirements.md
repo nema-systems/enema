@@ -138,7 +138,7 @@
 - **Workspace-Scoped Counters**: Each workspace maintains independent monotonic counters for each entity type
 - **Unique Within Workspace**: Public IDs are unique within a workspace but can be duplicated across different workspaces
 - **Database Constraints**: Composite unique constraints ensure workspace-scoped uniqueness:
-  - REQ: UNIQUE(req_collection_id→workspace_id, public_id) 
+  - REQ: UNIQUE(module_id→workspace_id, public_id) 
   - TESTCASE: UNIQUE(workspace_id, public_id)
   - RELEASE: UNIQUE(module_id→workspace_id, public_id)
   - ASSET: UNIQUE(workspace_id, public_id)

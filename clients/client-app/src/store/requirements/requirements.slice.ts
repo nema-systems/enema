@@ -2,13 +2,43 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface Requirement {
   id: number;
-  public_id?: string;
+  base_req_id?: number;
+  parent_req_id?: number;
+  prev_version?: number;
+  module_id: number;
+  author_id: number;
+  owner_id?: number;
+  public_id: string;
   name: string;
-  description?: string;
-  status: string;
+  definition: string;
+  version_number: number;
+  level: string;
   priority: string;
-  req_type: string;
+  functional: string;
+  validation_method: string;
+  status: string;
+  rationale?: string;
+  notes?: string;
+  meta_data?: any;
   created_at: string;
+  // Relationships
+  module?: {
+    id: number;
+    name: string;
+    public_id: string;
+  };
+  author?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  owner?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  parent_req?: Requirement;
+  children?: Requirement[];
 }
 
 interface RequirementsState {

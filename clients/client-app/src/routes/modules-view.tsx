@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import axios from "axios";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
@@ -14,6 +14,7 @@ import { apiUrl } from "../utils/api";
 
 const ModulesView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -98,9 +99,6 @@ const ModulesView: React.FC = () => {
         description: formData.description.trim() || null,
         rules: formData.rules.trim() || null,
         shared: formData.shared,
-        create_new_req_collection: formData.create_new_req_collection,
-        new_req_collection_name: formData.create_new_req_collection ? formData.new_req_collection_name?.trim() : undefined,
-        req_collection_id: formData.create_new_req_collection ? undefined : formData.req_collection_id,
       };
 
       const response = await axios.post(
@@ -396,15 +394,21 @@ const ModulesView: React.FC = () => {
               {filteredModules.map((module) => (
                 <div
                   key={module.id}
+                  onClick={() => navigate(`/workspace/${workspaceId}/modules/${module.id}`)}
                   className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden group"
                 >
                   <div className="flex">
                     <div className={`w-1 ${getBgColorFromId(module.id)} flex-shrink-0`} />
                     <div className="p-4 flex-1">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-gray-900 dark:text-white flex-1">
-                          {module.name}
-                        </h3>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">
+                            {module.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                            {module.public_id}
+                          </p>
+                        </div>
                         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={(e) => {

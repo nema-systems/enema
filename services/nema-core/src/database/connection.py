@@ -108,10 +108,6 @@ async def _create_database_schema(conn):
     logger.info("Creating database schema for requirement management system...")
     
     try:
-        # Create required PostgreSQL extensions
-        await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
-        logger.info("UUID extension created successfully")
-        
         # Import models to register them with Base
         from .models import Base
         
@@ -128,6 +124,14 @@ async def _create_database_schema(conn):
         
         # Create functions and triggers for public ID generation
         await _create_public_id_functions(conn)
+        
+        # Try to create UUID extension at the end (optional)
+        try:
+            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+            logger.info("UUID extension created successfully")
+        except Exception as ext_error:
+            logger.warning("Could not create uuid-ossp extension", error=str(ext_error))
+            # This is not critical, continue
         
         logger.info("Database schema initialization completed successfully")
         
@@ -153,10 +157,18 @@ async def _create_database_indexes(conn):
         # Workspace indexes
         "CREATE INDEX IF NOT EXISTS idx_workspace_name ON workspace(name)",
         
+        # Module indexes
+        "CREATE INDEX IF NOT EXISTS idx_module_public_id ON module(public_id)",
+        "CREATE INDEX IF NOT EXISTS idx_module_workspace_id ON module(workspace_id)",
+        
+        # Product indexes
+        "CREATE INDEX IF NOT EXISTS idx_product_public_id ON product(public_id)",
+        "CREATE INDEX IF NOT EXISTS idx_product_workspace_id ON product(workspace_id)",
+        
         # Requirement indexes
         "CREATE INDEX IF NOT EXISTS idx_req_public_id ON req(public_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_base_req_id ON req(base_req_id)",
-        "CREATE INDEX IF NOT EXISTS idx_req_collection_id ON req(req_collection_id)",
+        "CREATE INDEX IF NOT EXISTS idx_req_module_id ON req(module_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_author_id ON req(author_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_owner_id ON req(owner_id)",
         "CREATE INDEX IF NOT EXISTS idx_req_status ON req(status)",
@@ -263,10 +275,10 @@ async def _create_public_id_functions(conn):
     DECLARE
         ws_id INTEGER;
     BEGIN
-        -- Get workspace_id from req_collection
-        SELECT rt.workspace_id INTO ws_id 
-        FROM req_collection rt 
-        WHERE rt.id = NEW.req_collection_id;
+        -- Get workspace_id from module
+        SELECT m.workspace_id INTO ws_id 
+        FROM module m 
+        WHERE m.id = NEW.module_id;
         
         -- Set public_id if not already set
         IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
@@ -377,6 +389,60 @@ async def _create_public_id_functions(conn):
         EXECUTE FUNCTION set_release_public_id()
     """
     await conn.execute(text(release_trigger))
+    
+    # Trigger function for modules
+    module_trigger_function = """
+    CREATE OR REPLACE FUNCTION set_module_public_id()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        -- Set public_id if not already set
+        IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
+            NEW.public_id := generate_public_id(NEW.workspace_id, 'MOD');
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(module_trigger_function))
+    
+    # Create trigger for modules
+    await conn.execute(text("DROP TRIGGER IF EXISTS trigger_set_module_public_id ON module"))
+    module_trigger = """
+    CREATE TRIGGER trigger_set_module_public_id
+        BEFORE INSERT ON module
+        FOR EACH ROW
+        EXECUTE FUNCTION set_module_public_id()
+    """
+    await conn.execute(text(module_trigger))
+    
+    # Trigger function for products
+    product_trigger_function = """
+    CREATE OR REPLACE FUNCTION set_product_public_id()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        -- Set public_id if not already set
+        IF NEW.public_id IS NULL OR NEW.public_id = '' THEN
+            NEW.public_id := generate_public_id(NEW.workspace_id, 'PROD');
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    
+    await conn.execute(text(product_trigger_function))
+    
+    # Create trigger for products
+    await conn.execute(text("DROP TRIGGER IF EXISTS trigger_set_product_public_id ON product"))
+    product_trigger = """
+    CREATE TRIGGER trigger_set_product_public_id
+        BEFORE INSERT ON product
+        FOR EACH ROW
+        EXECUTE FUNCTION set_product_public_id()
+    """
+    await conn.execute(text(product_trigger))
     
     logger.info("Public ID generation functions and triggers created successfully")
 

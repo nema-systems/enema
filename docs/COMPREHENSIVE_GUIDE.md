@@ -22,6 +22,7 @@ Enema provides a comprehensive solution for managing requirements, organizing pr
 ### Core Capabilities
 - 🏗️ **Hierarchical Organization** - Products contain modules in a tree structure for logical organization
 - 📋 **Requirements Management** - Full CRUD operations with versioning and status tracking
+- 🏷️ **JIRA-like Public IDs** - Human-readable identifiers (PROD-X, MOD-X, REQ-X) for easy reference
 - 🔐 **Enterprise Authentication** - Clerk integration with organization-level access control
 - 🚀 **Modern Stack** - FastAPI backend, React frontend, PostgreSQL database
 - 📊 **RESTful API** - Complete OpenAPI documentation with workspace-scoped endpoints
@@ -87,9 +88,9 @@ See [Deployment Guide](#-deployment) for AWS ECS deployment instructions.
 #### Database Schema
 
 - **workspace**: Workspace-level isolation and permissions
-- **product**: Product organization and management
-- **module**: Hierarchical module system for requirement organization
-- **req**: Requirements with versioning and metadata
+- **product**: Product organization and management with public_id (PROD-X)
+- **module**: Hierarchical module system with public_id (MOD-X) for requirement organization
+- **req**: Requirements with versioning, metadata, and public_id (REQ-X)
 - **user**: User management with Clerk integration
 - **organization**: Organization-level multi-tenancy
 

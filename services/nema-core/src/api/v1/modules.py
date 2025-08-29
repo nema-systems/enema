@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import structlog
 
 from ...database.connection import get_db
-from ...database.models import Module, ReqCollection, Product
+from ...database.models import Module, Product
 from ...auth.routes import get_current_user
 from ...auth.models import User
 from .workspaces import validate_workspace_access
@@ -20,21 +20,15 @@ router = APIRouter()
 
 # Pydantic models
 class ModuleCreate(BaseModel):
-    req_collection_id: Optional[int] = None  # Optional when creating new collection
     name: str
     description: Optional[str] = None
-    rules: Optional[str] = None
     shared: bool = False
     metadata: Optional[dict] = None
-    # New fields for req collection creation
-    create_new_req_collection: bool = False
-    new_req_collection_name: Optional[str] = None
 
 
 class ModuleUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    rules: Optional[str] = None
     shared: Optional[bool] = None
     metadata: Optional[dict] = None
 
@@ -42,10 +36,9 @@ class ModuleUpdate(BaseModel):
 class ModuleResponse(BaseModel):
     id: int
     workspace_id: int
-    req_collection_id: int
+    public_id: str
     name: str
     description: Optional[str]
-    rules: Optional[str]
     shared: bool
     metadata: Optional[dict]
     created_at: str
@@ -162,10 +155,9 @@ async def list_modules(
         ModuleResponse(
             id=comp.id,
             workspace_id=comp.workspace_id,
-            req_collection_id=comp.req_collection_id,
+            public_id=comp.public_id,
             name=comp.name,
             description=comp.description,
-            rules=comp.rules,
             shared=comp.shared,
             metadata=comp.meta_data,
             created_at=comp.created_at.isoformat()
@@ -202,72 +194,14 @@ async def create_module(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create new module with optional req collection creation"""
-    
-    # Validation
-    if module_data.create_new_req_collection and module_data.req_collection_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot specify both create_new_req_collection and req_collection_id"
-        )
-    
-    if not module_data.create_new_req_collection and not module_data.req_collection_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Must specify either create_new_req_collection or req_collection_id"
-        )
-    
-    if module_data.create_new_req_collection and not module_data.new_req_collection_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="new_req_collection_name is required when create_new_req_collection is true"
-        )
-    
-    req_collection_id = module_data.req_collection_id
+    """Create new module"""
     
     try:
-        # Handle req collection creation or validation
-        if module_data.create_new_req_collection:
-            # Create new req collection
-            new_req_collection = ReqCollection(
-                workspace_id=workspace_id,
-                name=module_data.new_req_collection_name,
-                meta_data={"created_by": "module_creation", "module_name": module_data.name}
-            )
-            
-            db.add(new_req_collection)
-            await db.flush()  # Get the ID
-            req_collection_id = new_req_collection.id
-            
-            logger.info("Created new req collection for module", 
-                       req_collection_id=req_collection_id,
-                       name=module_data.new_req_collection_name,
-                       module_name=module_data.name)
-        
-        else:
-            # Validate existing req_collection belongs to workspace
-            req_collection_query = select(ReqCollection).where(
-                and_(
-                    ReqCollection.id == module_data.req_collection_id,
-                    ReqCollection.workspace_id == workspace_id
-                )
-            )
-            req_collection_result = await db.execute(req_collection_query)
-            req_collection = req_collection_result.scalar_one_or_none()
-            
-            if not req_collection:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Requirement collection not found in this workspace"
-                )
-        
         # Create module
         new_module = Module(
             workspace_id=workspace_id,
-            req_collection_id=req_collection_id,
             name=module_data.name,
             description=module_data.description,
-            rules=module_data.rules,
             shared=module_data.shared,
             meta_data=module_data.metadata
         )
@@ -299,10 +233,9 @@ async def create_module(
     module_response = ModuleResponse(
         id=new_module.id,
         workspace_id=new_module.workspace_id,
-        req_collection_id=new_module.req_collection_id,
+        public_id=new_module.public_id,
         name=new_module.name,
         description=new_module.description,
-        rules=new_module.rules,
         shared=new_module.shared,
         metadata=new_module.meta_data,
         created_at=new_module.created_at.isoformat()
@@ -332,10 +265,9 @@ async def get_module(
     module_response = ModuleResponse(
         id=module.id,
         workspace_id=module.workspace_id,
-        req_collection_id=module.req_collection_id,
+        public_id=module.public_id,
         name=module.name,
         description=module.description,
-        rules=module.rules,
         shared=module.shared,
         metadata=module.meta_data,
         created_at=module.created_at.isoformat()
@@ -368,8 +300,6 @@ async def update_module(
         module.name = module_data.name
     if module_data.description is not None:
         module.description = module_data.description
-    if module_data.rules is not None:
-        module.rules = module_data.rules
     if module_data.shared is not None:
         module.shared = module_data.shared
     if module_data.metadata is not None:
@@ -385,10 +315,9 @@ async def update_module(
     module_response = ModuleResponse(
         id=module.id,
         workspace_id=module.workspace_id,
-        req_collection_id=module.req_collection_id,
+        public_id=module.public_id,
         name=module.name,
         description=module.description,
-        rules=module.rules,
         shared=module.shared,
         metadata=module.meta_data,
         created_at=module.created_at.isoformat()

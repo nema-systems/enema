@@ -3,13 +3,13 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export interface Module {
   id: number;
   workspace_id: number;
-  req_collection_id: number;
   name: string;
   description?: string;
   rules?: string;
   shared: boolean;
   metadata?: any;
   created_at: string;
+  public_id: string;
 }
 
 interface ModulesState {

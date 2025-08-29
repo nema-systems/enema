@@ -6,17 +6,18 @@ import axios from "axios";
 import { apiUrl } from "../../utils/api";
 import SearchableSingleSelect from "../ui/searchable-single-select";
 
-interface ReqCollection {
+interface Module {
   id: number;
   name: string;
   workspace_id: number;
+  description: string;
   metadata?: any;
   created_at: string;
 }
 
 interface Requirement {
   id: number;
-  req_collection_id: number;
+  module_id: number;
   public_id: string;
   name: string;
   definition: string;
@@ -38,14 +39,14 @@ interface RequirementCreationModalProps {
   onClose: () => void;
   onSubmit: (data: RequirementFormData) => Promise<void>;
   isLoading?: boolean;
-  reqCollections: ReqCollection[];
-  selectedReqCollectionId?: number;
+  modules: Module[];
+  selectedModuleId?: number;
   workspaceId: string;
   editRequirement?: Requirement | null;
 }
 
 export interface RequirementFormData {
-  req_collection_id: number;
+  module_id: number;
   name: string;
   definition: string;
   level: string;
@@ -99,15 +100,15 @@ const RequirementCreationModal = ({
   onClose, 
   onSubmit, 
   isLoading = false,
-  reqCollections,
-  selectedReqCollectionId,
+  modules,
+  selectedModuleId,
   workspaceId,
   editRequirement = null
 }: RequirementCreationModalProps) => {
   const { getToken } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [formData, setFormData] = useState<RequirementFormData>({
-    req_collection_id: selectedReqCollectionId || 0,
+    module_id: selectedModuleId || 0,
     name: "",
     definition: "",
     level: "L0",
@@ -126,7 +127,7 @@ const RequirementCreationModal = ({
 
   // Search function for parent requirements
   const searchParentRequirements = async (query: string): Promise<Requirement[]> => {
-    if (!workspaceId || !formData.req_collection_id || formData.req_collection_id === 0) {
+    if (!workspaceId || !formData.module_id || formData.module_id === 0) {
       return [];
     }
 
@@ -137,7 +138,7 @@ const RequirementCreationModal = ({
         {
           headers: { Authorization: `Bearer ${token}` },
           params: {
-            req_collection_id: formData.req_collection_id,
+            module_id: formData.module_id,
             search: query,
             limit: 10,
             page: 1
@@ -165,7 +166,7 @@ const RequirementCreationModal = ({
   useEffect(() => {
     if (editRequirement) {
       setFormData({
-        req_collection_id: editRequirement.req_collection_id,
+        module_id: editRequirement.module_id,
         name: editRequirement.name,
         definition: editRequirement.definition,
         level: editRequirement.level,
@@ -182,7 +183,7 @@ const RequirementCreationModal = ({
       setSelectedParentReq(null);
     } else {
       setFormData({
-        req_collection_id: selectedReqCollectionId || 0,
+        module_id: selectedModuleId || 0,
         name: "",
         definition: "",
         level: "L0",
@@ -197,22 +198,22 @@ const RequirementCreationModal = ({
       setSelectedParentReq(null);
     }
     setErrors({});
-  }, [editRequirement, selectedReqCollectionId]);
+  }, [editRequirement, selectedModuleId]);
 
-  // Update req_collection_id when selectedReqCollectionId changes
+  // Update module_id when selectedModuleId changes
   useEffect(() => {
-    if (selectedReqCollectionId) {
-      setFormData(prev => ({ ...prev, req_collection_id: selectedReqCollectionId }));
+    if (selectedModuleId) {
+      setFormData(prev => ({ ...prev, module_id: selectedModuleId }));
     }
-  }, [selectedReqCollectionId]);
+  }, [selectedModuleId]);
 
   // Reset parent requirement when collection changes
   useEffect(() => {
-    if (selectedParentReq && selectedParentReq.req_collection_id !== formData.req_collection_id) {
+    if (selectedParentReq && selectedParentReq.module_id !== formData.module_id) {
       setSelectedParentReq(null);
       setFormData(prev => ({ ...prev, parent_req_id: undefined }));
     }
-  }, [formData.req_collection_id, selectedParentReq]);
+  }, [formData.module_id, selectedParentReq]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,8 +229,8 @@ const RequirementCreationModal = ({
       newErrors.definition = "Requirement definition is required";
     }
     
-    if (!formData.req_collection_id || formData.req_collection_id === 0) {
-      newErrors.req_collection_id = "Please select a requirement collection";
+    if (!formData.module_id || formData.module_id === 0) {
+      newErrors.module_id = "Please select a requirement collection";
     }
     
     if (Object.keys(newErrors).length > 0) {
@@ -244,7 +245,7 @@ const RequirementCreationModal = ({
   const handleClose = () => {
     if (!isLoading) {
       setFormData({
-        req_collection_id: selectedReqCollectionId || 0,
+        module_id: selectedModuleId || 0,
         name: "",
         definition: "",
         level: "L0",
@@ -263,7 +264,7 @@ const RequirementCreationModal = ({
     }
   };
 
-  const selectedReqCollection = reqCollections.find(rc => rc.id === formData.req_collection_id);
+  const selectedModule = modules.find(rc => rc.id === formData.module_id);
 
   // Handle parent requirement selection
   const handleParentRequirementChange = (parentReq: Requirement | null) => {
@@ -346,35 +347,35 @@ const RequirementCreationModal = ({
                 </label>
                 <select
                   id="req-collection"
-                  value={formData.req_collection_id}
-                  onChange={(e) => setFormData({ ...formData, req_collection_id: parseInt(e.target.value) })}
+                  value={formData.module_id}
+                  onChange={(e) => setFormData({ ...formData, module_id: parseInt(e.target.value) })}
                   disabled={isLoading}
                   className={`w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:text-white ${
-                    errors.req_collection_id ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
+                    errors.module_id ? 'border-red-500/70' : 'border-gray-300/50 dark:border-gray-600/50'
                   } disabled:opacity-50 transition-all duration-200`}
                 >
                   <option value={0}>Select a requirement collection</option>
-                  {reqCollections.map((collection) => (
+                  {modules.map((collection) => (
                     <option key={collection.id} value={collection.id}>
                       {collection.name}
                     </option>
                   ))}
                 </select>
-                {errors.req_collection_id && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.req_collection_id}</p>
+                {errors.module_id && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.module_id}</p>
                 )}
-                {selectedReqCollection && (
+                {selectedModule && (
                   <div className="mt-2 p-2 bg-indigo-50/70 dark:bg-indigo-900/30 backdrop-blur border border-indigo-200/40 dark:border-indigo-800/40 rounded-lg">
                     <p className="text-sm text-indigo-800 dark:text-indigo-200">
                       <CheckCircleIcon className="h-4 w-4 inline mr-1" />
-                      Selected: <span className="font-medium">{selectedReqCollection.name}</span>
+                      Selected: <span className="font-medium">{selectedModule.name}</span>
                     </p>
                   </div>
                 )}
               </div>
 
               {/* Parent Requirement Search */}
-              {formData.req_collection_id > 0 && (
+              {formData.module_id > 0 && (
                 <div>
                   <label htmlFor="parent-req" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Parent Requirement (Optional)

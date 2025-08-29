@@ -5,6 +5,7 @@ import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { 
   fetchTestCases, 
   createTestCase, 
+  updateTestCase,
   deleteTestCase,
   clearError 
 } from "../store/testcases/testcases.slice";
@@ -15,6 +16,7 @@ import {
 } from "../store/testcases/testcases.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import TestCasesModal, { TestCasesFormData } from "../components/modals/test-cases-modal";
+import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
 import { apiUrl } from "../utils/api";
 
 const TestCasesView: React.FC = () => {
@@ -37,6 +39,10 @@ const TestCasesView: React.FC = () => {
   // Modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateLoading, setIsCreateLoading] = useState(false);
+  const [editingTestCase, setEditingTestCase] = useState<any>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [testCaseToDelete, setTestCaseToDelete] = useState<any>(null);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [requirements, setRequirements] = useState<any[]>([]);
 
   useEffect(() => {
@@ -96,32 +102,69 @@ const TestCasesView: React.FC = () => {
     if (workspaceId) {
       try {
         setIsCreateLoading(true);
-        await dispatch(createTestCase({
-          workspaceId: parseInt(workspaceId),
-          testcase: {
-            ...data,
-            metadata: {}
-          }
-        })).unwrap();
+        const token = await getToken({ template: "default" });
+        
+        if (editingTestCase) {
+          // Update existing test case
+          await dispatch(updateTestCase({
+            workspaceId: parseInt(workspaceId),
+            token: token!,
+            testcaseId: editingTestCase.id,
+            updates: {
+              ...data,
+              metadata: {}
+            }
+          })).unwrap();
+        } else {
+          // Create new test case
+          await dispatch(createTestCase({
+            workspaceId: parseInt(workspaceId),
+            token: token!,
+            testcase: {
+              ...data,
+              metadata: {}
+            }
+          })).unwrap();
+        }
         
         setIsCreateModalOpen(false);
+        setEditingTestCase(null);
       } catch (error) {
-        console.error("Failed to create test case:", error);
+        console.error(`Failed to ${editingTestCase ? 'update' : 'create'} test case:`, error);
       } finally {
         setIsCreateLoading(false);
       }
     }
   };
 
-  const handleDeleteTestCase = async (testcaseId: number) => {
-    if (workspaceId && confirm("Are you sure you want to delete this test case?")) {
+  const handleEditTestCase = (testCase: any) => {
+    setEditingTestCase(testCase);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleDeleteClick = (testCase: any) => {
+    setTestCaseToDelete(testCase);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (workspaceId && testCaseToDelete) {
       try {
+        setIsDeleteLoading(true);
+        const token = await getToken({ template: "default" });
         await dispatch(deleteTestCase({
           workspaceId: parseInt(workspaceId),
-          testcaseId
+          token: token!,
+          testcaseId: testCaseToDelete.id
         })).unwrap();
+        
+        setIsDeleteModalOpen(false);
+        setTestCaseToDelete(null);
       } catch (error) {
         console.error("Failed to delete test case:", error);
+        throw error;
+      } finally {
+        setIsDeleteLoading(false);
       }
     }
   };
@@ -253,18 +296,32 @@ const TestCasesView: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {testcase.name}
                   </h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTestCase(testcase.id);
-                    }}
-                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Delete test case"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditTestCase(testcase);
+                      }}
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                      title="Edit test case"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(testcase);
+                      }}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      title="Delete test case"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -309,10 +366,27 @@ const TestCasesView: React.FC = () => {
 
       <TestCasesModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setEditingTestCase(null);
+        }}
         onSubmit={handleCreateTestCase}
         isLoading={isCreateLoading}
+        editTestCase={editingTestCase}
         existingRequirements={requirements}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setTestCaseToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        itemName={testCaseToDelete?.name || ""}
+        itemType="Test Case"
+        isLoading={isDeleteLoading}
+        warningMessage="This will permanently delete the test case and all its associated test runs and results."
       />
     </div>
   );

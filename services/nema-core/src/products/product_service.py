@@ -2,10 +2,11 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, and_, func
 from typing import Optional, Dict, Any
 import structlog
 
-from ..database.models import Product, Module, ReqCollection, ProductModule
+from ..database.models import Product, Module, ProductModule
 from ..database.connection import get_db_session
 
 logger = structlog.get_logger(__name__)
@@ -13,17 +14,15 @@ logger = structlog.get_logger(__name__)
 
 class ProductCreationResult:
     """Result of product creation with all associated entities"""
-    def __init__(self, product: Product, module: Module, req_collection: ReqCollection):
+    def __init__(self, product: Product, module: Module):
         self.product = product
-        self.module = module 
-        self.req_collection = req_collection
+        self.module = module
 
 
 class ProductDeletionPreview:
     """Preview of what will be deleted when deleting a product"""
     def __init__(self):
         self.modules_to_delete = []
-        self.req_collections_to_delete = []
         self.requirements_count = 0
 
 
@@ -36,114 +35,98 @@ class ProductService:
         name: str,
         description: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        create_defaults: bool = True
+        create_default_module: bool = True
     ) -> ProductCreationResult:
         """
-        Create a new product with automatically created Module and ReqCollection
+        Create a new product with automatically created default module
         
         Args:
             workspace_id: ID of the workspace to create the product in
             name: Product name
             description: Optional product description
             metadata: Optional metadata dictionary
-            create_defaults: Whether to create default Module and ReqCollection
+            create_default_module: Whether to create default module
             
         Returns:
-            ProductCreationResult containing the created entities
+            ProductCreationResult with created product and module
             
         Raises:
-            IntegrityError: If product creation fails due to constraints
-            Exception: For other database errors
+            IntegrityError: If product name conflicts with existing product in workspace
+            Exception: For other database or validation errors
         """
+        
         async with get_db_session() as session:
             try:
-                # Step 1: Create the Product
+                # Step 1: Create Product
                 product = Product(
                     workspace_id=workspace_id,
                     name=name,
                     description=description,
-                    meta_data=metadata
+                    meta_data=metadata or {}
                 )
+                
                 session.add(product)
                 await session.flush()  # Get the product ID
                 
-                logger.info("Product created", 
-                           product_id=product.id, 
-                           name=name,
-                           workspace_id=workspace_id)
+                if not create_default_module:
+                    # Return without creating default module
+                    return ProductCreationResult(product, None)
                 
-                if not create_defaults:
-                    await session.commit()
-                    await session.refresh(product)
-                    # Return with empty module and req_collection for non-default creation
-                    return ProductCreationResult(product, None, None)
+                # Step 2: Create Module with generated public_id
+                # Generate a simple public_id using timestamp (since there's no trigger for modules)
+                import time
+                timestamp_id = int(time.time() * 1000)  # milliseconds
+                public_id = f"MOD-{timestamp_id}"
                 
-                # Step 2: Create ReqCollection
-                req_collection = ReqCollection(
-                    workspace_id=workspace_id,
-                    name=f"{name} - Requirements",
-                    meta_data={"created_by": "product_service", "product_id": product.id}
-                )
-                session.add(req_collection)
-                await session.flush()  # Get the req_collection ID
-                
-                logger.info("ReqCollection created", 
-                           req_collection_id=req_collection.id,
-                           name=req_collection.name,
-                           product_id=product.id)
-                
-                # Step 3: Create base Module
                 module = Module(
                     workspace_id=workspace_id,
-                    req_collection_id=req_collection.id,
-                    name=f"{name} - Base Module",
-                    description=f"Base module for {name}",
-                    rules="Default module rules - customize as needed",
-                    shared=False,  # Start as non-shared
-                    meta_data={"created_by": "product_service", "product_id": product.id}
+                    public_id=public_id,
+                    name=f"{name} Base Module",
+                    description=f"Base module for {name} product requirements",
+                    shared=False,  # Product-specific module
+                    meta_data={
+                        "created_by": "product_service",
+                        "product_id": product.id,
+                        "auto_created": True
+                    }
                 )
+                
                 session.add(module)
                 await session.flush()  # Get the module ID
+                
+                # Step 3: Link the default module to the product
+                product.default_module_id = module.id
+                await session.flush()  # Ensure the default_module_id is persisted
                 
                 logger.info("Module created", 
                            module_id=module.id,
                            name=module.name,
-                           req_collection_id=req_collection.id,
                            product_id=product.id)
                 
-                # Step 4: Create ProductModule junction entry
-                product_module = ProductModule(
-                    workspace_id=workspace_id,
-                    product_id=product.id,
-                    module_id=module.id
-                )
-                session.add(product_module)
+                # Note: Default module is linked via default_module_id foreign key,
+                # NOT via the ProductModule junction table. The junction table is only
+                # for additional shared modules that can be attached/detached.
                 
-                # Step 5: Commit all changes
-                await session.commit()
-                
-                # Refresh all entities to get the latest state
+                # Note: transaction commit is handled by get_db_session() context manager
                 await session.refresh(product)
-                await session.refresh(req_collection)
                 await session.refresh(module)
                 
-                logger.info("Product creation workflow completed successfully", 
+                logger.info("Product creation completed", 
                            product_id=product.id,
                            module_id=module.id,
-                           req_collection_id=req_collection.id,
-                           workspace_id=workspace_id)
+                           name=name)
                 
-                return ProductCreationResult(product, module, req_collection)
+                return ProductCreationResult(product, module)
                 
             except IntegrityError as e:
-                await session.rollback()
+                # Note: rollback is handled by get_db_session() context manager
                 logger.error("Product creation failed due to integrity constraint", 
                            error=str(e),
                            workspace_id=workspace_id,
                            name=name)
                 raise
             except Exception as e:
-                await session.rollback()
+                # Note: rollback is handled by get_db_session() context manager
                 logger.error("Product creation failed", 
                            error=str(e),
                            workspace_id=workspace_id,
@@ -156,200 +139,145 @@ class ProductService:
         product_id: int
     ) -> Optional[ProductCreationResult]:
         """
-        Get a product with its associated module and req collection details
+        Get a product with its associated module
         
-        Args:
-            workspace_id: ID of the workspace
-            product_id: ID of the product
-            
-        Returns:
-            ProductCreationResult if found, None otherwise
+        Returns ProductCreationResult or None if product not found
         """
         async with get_db_session() as session:
             try:
-                # Get the product
-                from sqlalchemy import select
-                
-                product_query = select(Product).where(
-                    (Product.id == product_id) & 
-                    (Product.workspace_id == workspace_id)
-                )
-                result = await session.execute(product_query)
-                product = result.scalar_one_or_none()
-                
-                if not product:
-                    return None
-                
-                # Get associated modules and req collections
-                # For now, get the first module (base module)
-                module_query = (
-                    select(Module)
-                    .join(ProductModule)
-                    .where(
-                        (ProductModule.product_id == product_id) &
-                        (ProductModule.workspace_id == workspace_id)
-                    )
-                    .limit(1)
-                )
-                module_result = await session.execute(module_query)
-                module = module_result.scalar_one_or_none()
-                
-                req_collection = None
-                if module:
-                    req_collection_query = select(ReqCollection).where(
-                        ReqCollection.id == module.req_collection_id
-                    )
-                    req_collection_result = await session.execute(req_collection_query)
-                    req_collection = req_collection_result.scalar_one_or_none()
-                
-                return ProductCreationResult(product, module, req_collection)
-                
-            except Exception as e:
-                logger.error("Failed to get product with details", 
-                           error=str(e),
-                           workspace_id=workspace_id,
-                           product_id=product_id)
-                raise
-    
-    async def delete_product(
-        self, 
-        workspace_id: int, 
-        product_id: int
-    ) -> bool:
-        """
-        Delete a product and all its associated entities
-        
-        Args:
-            workspace_id: ID of the workspace
-            product_id: ID of the product to delete
-            
-        Returns:
-            True if deletion was successful
-            
-        Raises:
-            Exception: If product doesn't exist or deletion fails
-        """
-        async with get_db_session() as session:
-            try:
-                from sqlalchemy import select, and_
-                
-                # First, verify the product exists and belongs to workspace
+                # Get product
                 product_query = select(Product).where(
                     and_(
                         Product.id == product_id,
                         Product.workspace_id == workspace_id
                     )
                 )
-                result = await session.execute(product_query)
-                product = result.scalar_one_or_none()
+                product_result = await session.execute(product_query)
+                product = product_result.scalar_one_or_none()
                 
                 if not product:
-                    raise Exception(f"Product with ID {product_id} not found in workspace {workspace_id}")
+                    return None
                 
-                # Find associated modules that were auto-created for this product
-                from ..database.models import ProductModule, Module, ReqCollection
-                
-                # Get modules associated with this product
-                module_query = (
-                    select(Module)
-                    .join(ProductModule)
-                    .where(
-                        and_(
-                            ProductModule.product_id == product_id,
-                            ProductModule.workspace_id == workspace_id
-                        )
+                # Get associated module (if any)
+                module_query = select(Module).join(ProductModule).where(
+                    and_(
+                        ProductModule.product_id == product_id,
+                        ProductModule.workspace_id == workspace_id,
+                        Module.meta_data.op('->>')('product_id') == str(product_id)
                     )
                 )
-                modules_result = await session.execute(module_query)
-                modules = modules_result.scalars().all()
+                module_result = await session.execute(module_query)
+                module = module_result.scalar_one_or_none()
                 
-                modules_to_delete = []
-                req_collections_to_delete = []
+                return ProductCreationResult(product, module)
                 
-                for module in modules:
-                    # Only delete if it was auto-created by product service and not shared
-                    is_auto_created = (
-                        module.meta_data and 
-                        module.meta_data.get("created_by") == "product_service" and
-                        module.meta_data.get("product_id") == product_id
-                    )
-                    
-                    if is_auto_created and not module.shared:
-                        # Check if this module is used by other products
-                        other_products_query = select(ProductModule).where(
-                            and_(
-                                ProductModule.module_id == module.id,
-                                ProductModule.product_id != product_id
-                            )
-                        )
-                        other_products_result = await session.execute(other_products_query)
-                        other_products = other_products_result.scalars().all()
-                        
-                        if not other_products:  # Module is only used by this product
-                            modules_to_delete.append(module)
-                            
-                            # Check if the associated req_collection should also be deleted
-                            if module.req_collection_id:
-                                req_collection_query = select(ReqCollection).where(
-                                    ReqCollection.id == module.req_collection_id
-                                )
-                                req_collection_result = await session.execute(req_collection_query)
-                                req_collection = req_collection_result.scalar_one_or_none()
-                                
-                                if req_collection and req_collection.meta_data:
-                                    is_req_collection_auto_created = (
-                                        req_collection.meta_data.get("created_by") == "product_service" and
-                                        req_collection.meta_data.get("product_id") == product_id
-                                    )
-                                    
-                                    if is_req_collection_auto_created:
-                                        # Check if req_collection is used by other modules
-                                        other_modules_query = select(Module).where(
-                                            and_(
-                                                Module.req_collection_id == req_collection.id,
-                                                Module.id != module.id
-                                            )
-                                        )
-                                        other_modules_result = await session.execute(other_modules_query)
-                                        other_modules = other_modules_result.scalars().all()
-                                        
-                                        if not other_modules:  # ReqCollection is only used by this module
-                                            req_collections_to_delete.append(req_collection)
+            except Exception as e:
+                logger.error("Failed to get product details", 
+                           error=str(e),
+                           product_id=product_id,
+                           workspace_id=workspace_id)
+                return None
+    
+    async def delete_product_cascade(
+        self, 
+        workspace_id: int, 
+        product_id: int
+    ) -> bool:
+        """
+        Delete product and all auto-created associated entities
+        
+        This will delete:
+        1. Auto-created modules (shared modules will be preserved) 
+        2. Requirements in auto-created modules (CASCADE)
+        3. The product itself
+        4. ProductModule associations (CASCADE)
+        
+        Returns True if deletion successful, raises exception otherwise
+        """
+        async with get_db_session() as session:
+            try:
+                from ..database.models import ProductModule, Module, Req
                 
-                # Log the deletion for audit purposes
                 logger.info("Starting product deletion", 
                            product_id=product_id,
-                           product_name=product.name,
-                           workspace_id=workspace_id,
-                           modules_to_delete=[m.id for m in modules_to_delete],
-                           req_collections_to_delete=[r.id for r in req_collections_to_delete])
+                           workspace_id=workspace_id)
                 
-                # Delete ProductModule junction entries first to avoid dependency conflicts
-                product_module_query = select(ProductModule).where(
+                # Get product first
+                product_query = select(Product).where(
+                    and_(
+                        Product.id == product_id,
+                        Product.workspace_id == workspace_id
+                    )
+                )
+                product_result = await session.execute(product_query)
+                product = product_result.scalar_one_or_none()
+                
+                if not product:
+                    logger.warning("Product not found for deletion", 
+                                 product_id=product_id,
+                                 workspace_id=workspace_id)
+                    return False
+                
+                # Find modules associated with this product
+                modules_query = select(Module).join(ProductModule).where(
                     and_(
                         ProductModule.product_id == product_id,
                         ProductModule.workspace_id == workspace_id
                     )
                 )
-                product_modules_result = await session.execute(product_module_query)
-                product_modules = product_modules_result.scalars().all()
+                modules_result = await session.execute(modules_query)
+                modules = modules_result.scalars().all()
                 
-                for product_module in product_modules:
-                    logger.info("Deleting ProductModule junction entry",
-                               product_id=product_module.product_id,
-                               module_id=product_module.module_id,
-                               workspace_id=product_module.workspace_id)
-                    await session.delete(product_module)
+                modules_to_delete = []
                 
-                # Delete auto-created req_collections (due to foreign key constraints with modules)
-                for req_collection in req_collections_to_delete:
-                    logger.info("Deleting auto-created req_collection",
-                               req_collection_id=req_collection.id,
-                               req_collection_name=req_collection.name,
+                # First, check if there's a default module to delete
+                if product.default_module_id:
+                    default_module_query = select(Module).where(Module.id == product.default_module_id)
+                    default_module_result = await session.execute(default_module_query)
+                    default_module = default_module_result.scalar_one_or_none()
+                    
+                    if default_module:
+                        modules_to_delete.append(default_module)
+                
+                # Then check junction table modules
+                for module in modules:
+                    # Skip if this is already the default module
+                    if product.default_module_id and module.id == product.default_module_id:
+                        continue
+                        
+                    # Check if this module was auto-created by product service
+                    if module.meta_data and isinstance(module.meta_data, dict):
+                        is_auto_created = (
+                            module.meta_data.get("created_by") == "product_service" and
+                            module.meta_data.get("product_id") == product_id
+                        )
+                        
+                        if is_auto_created:
+                            modules_to_delete.append(module)
+                
+                logger.info("Found modules to delete", 
+                           product_id=product_id,
+                           modules_to_delete=[m.id for m in modules_to_delete])
+                
+                # Delete ProductModule associations for modules we're going to delete
+                from sqlalchemy import delete
+                for module in modules_to_delete:
+                    logger.info("Removing ProductModule associations for module",
+                               module_id=module.id,
+                               module_name=module.name,
                                product_id=product_id)
-                    await session.delete(req_collection)
+                    
+                    # Delete ProductModule associations for this module
+                    delete_pm_stmt = delete(ProductModule).where(
+                        and_(
+                            ProductModule.product_id == product_id,
+                            ProductModule.module_id == module.id,
+                            ProductModule.workspace_id == workspace_id
+                        )
+                    )
+                    await session.execute(delete_pm_stmt)
                 
-                # Delete auto-created modules
+                # Now delete the auto-created modules (requirements will cascade)
                 for module in modules_to_delete:
                     logger.info("Deleting auto-created module",
                                module_id=module.id,
@@ -357,148 +285,188 @@ class ProductService:
                                product_id=product_id)
                     await session.delete(module)
                 
-                # Delete the product last
-                await session.delete(product)
-                await session.commit()
-                
-                logger.info("Product deleted successfully", 
+                # Delete the product (remaining ProductModule associations will cascade)
+                logger.info("Deleting product", 
                            product_id=product_id,
-                           workspace_id=workspace_id)
+                           product_name=product.name)
+                await session.delete(product)
+                
+                # Note: transaction commit/rollback is handled by get_db_session() context manager
+                
+                logger.info("Product deletion completed", 
+                           product_id=product_id,
+                           deleted_modules_count=len(modules_to_delete))
                 
                 return True
                 
             except Exception as e:
-                await session.rollback()
                 logger.error("Product deletion failed", 
                            error=str(e),
                            product_id=product_id,
-                           workspace_id=workspace_id)
+                           workspace_id=workspace_id,
+                           exc_info=True)  # Include full stack trace
+                # Re-raise the exception so get_db_session can handle the rollback
                 raise
     
-    async def get_deletion_preview(
+    async def get_product_deletion_preview(
         self, 
         workspace_id: int, 
         product_id: int
-    ) -> ProductDeletionPreview:
+    ) -> Optional[ProductDeletionPreview]:
         """
-        Get a preview of what will be deleted when deleting a product
+        Get preview of what will be deleted when deleting a product
         
-        Args:
-            workspace_id: ID of the workspace
-            product_id: ID of the product
-            
-        Returns:
-            ProductDeletionPreview with details of entities to be deleted
-            
-        Raises:
-            Exception: If product doesn't exist
+        Returns ProductDeletionPreview or None if product not found
         """
         async with get_db_session() as session:
             try:
-                from sqlalchemy import select, and_, func
-                from ..database.models import ProductModule, Module, ReqCollection, Req
+                from ..database.models import ProductModule, Module, Req
                 
-                # First, verify the product exists and belongs to workspace
+                # Check if product exists
                 product_query = select(Product).where(
                     and_(
                         Product.id == product_id,
                         Product.workspace_id == workspace_id
                     )
                 )
-                result = await session.execute(product_query)
-                product = result.scalar_one_or_none()
+                product_result = await session.execute(product_query)
+                product = product_result.scalar_one_or_none()
                 
                 if not product:
-                    raise Exception(f"Product with ID {product_id} not found in workspace {workspace_id}")
+                    return None
                 
                 preview = ProductDeletionPreview()
                 
-                # Get modules associated with this product
-                module_query = (
-                    select(Module)
-                    .join(ProductModule)
-                    .where(
-                        and_(
-                            ProductModule.product_id == product_id,
-                            ProductModule.workspace_id == workspace_id
+                # Check default module first
+                if product.default_module_id:
+                    default_module_query = select(Module).where(Module.id == product.default_module_id)
+                    default_module_result = await session.execute(default_module_query)
+                    default_module = default_module_result.scalar_one_or_none()
+                    
+                    if default_module:
+                        # Count requirements in the default module
+                        req_count_query = select(func.count(Req.id)).where(
+                            Req.module_id == default_module.id
                         )
+                        req_count_result = await session.execute(req_count_query)
+                        req_count = req_count_result.scalar() or 0
+                        
+                        preview.modules_to_delete.append({
+                            "id": default_module.id,
+                            "name": default_module.name,
+                            "requirements_count": req_count,
+                            "is_default": True
+                        })
+                        preview.requirements_count += req_count
+                
+                # Find additional modules that will be deleted (via junction table)
+                modules_query = select(Module).join(ProductModule).where(
+                    and_(
+                        ProductModule.product_id == product_id,
+                        ProductModule.workspace_id == workspace_id
                     )
                 )
-                modules_result = await session.execute(module_query)
+                modules_result = await session.execute(modules_query)
                 modules = modules_result.scalars().all()
                 
                 for module in modules:
-                    # Only include if it would be deleted (auto-created and not shared)
-                    is_auto_created = (
-                        module.meta_data and 
-                        module.meta_data.get("created_by") == "product_service" and
-                        module.meta_data.get("product_id") == product_id
-                    )
-                    
-                    if is_auto_created and not module.shared:
-                        # Check if this module is used by other products
-                        other_products_query = select(ProductModule).where(
-                            and_(
-                                ProductModule.module_id == module.id,
-                                ProductModule.product_id != product_id
-                            )
-                        )
-                        other_products_result = await session.execute(other_products_query)
-                        other_products = other_products_result.scalars().all()
+                    # Skip if this is already the default module
+                    if product.default_module_id and module.id == product.default_module_id:
+                        continue
                         
-                        if not other_products:  # Module is only used by this product
+                    # Check if module was auto-created and will be deleted
+                    if module.meta_data and isinstance(module.meta_data, dict):
+                        is_auto_created = (
+                            module.meta_data.get("created_by") == "product_service" and
+                            module.meta_data.get("product_id") == product_id
+                        )
+                        
+                        if is_auto_created:
+                            # Count requirements in this module
+                            req_count_query = select(func.count(Req.id)).where(
+                                Req.module_id == module.id
+                            )
+                            req_count_result = await session.execute(req_count_query)
+                            req_count = req_count_result.scalar() or 0
+                            
                             preview.modules_to_delete.append({
                                 "id": module.id,
                                 "name": module.name,
-                                "description": module.description
+                                "requirements_count": req_count,
+                                "is_default": False
                             })
-                            
-                            # Check if the associated req_collection would also be deleted
-                            if module.req_collection_id:
-                                req_collection_query = select(ReqCollection).where(
-                                    ReqCollection.id == module.req_collection_id
-                                )
-                                req_collection_result = await session.execute(req_collection_query)
-                                req_collection = req_collection_result.scalar_one_or_none()
-                                
-                                if req_collection and req_collection.meta_data:
-                                    is_req_collection_auto_created = (
-                                        req_collection.meta_data.get("created_by") == "product_service" and
-                                        req_collection.meta_data.get("product_id") == product_id
-                                    )
-                                    
-                                    if is_req_collection_auto_created:
-                                        # Check if req_collection is used by other modules
-                                        other_modules_query = select(Module).where(
-                                            and_(
-                                                Module.req_collection_id == req_collection.id,
-                                                Module.id != module.id
-                                            )
-                                        )
-                                        other_modules_result = await session.execute(other_modules_query)
-                                        other_modules = other_modules_result.scalars().all()
-                                        
-                                        if not other_modules:  # ReqCollection is only used by this module
-                                            # Count requirements in this collection
-                                            req_count_query = select(func.count(Req.id)).where(
-                                                Req.req_collection_id == req_collection.id
-                                            )
-                                            req_count_result = await session.execute(req_count_query)
-                                            req_count = req_count_result.scalar()
-                                            
-                                            preview.req_collections_to_delete.append({
-                                                "id": req_collection.id,
-                                                "name": req_collection.name,
-                                                "requirements_count": req_count
-                                            })
-                                            
-                                            preview.requirements_count += req_count
+                            preview.requirements_count += req_count
                 
                 return preview
                 
             except Exception as e:
-                logger.error("Failed to get deletion preview", 
+                logger.error("Failed to generate product deletion preview", 
                            error=str(e),
-                           workspace_id=workspace_id,
+                           product_id=product_id,
+                           workspace_id=workspace_id)
+                return None
+    
+    # API compatibility aliases
+    async def get_deletion_preview(self, workspace_id: int, product_id: int) -> Optional[ProductDeletionPreview]:
+        """Alias for get_product_deletion_preview for API compatibility"""
+        return await self.get_product_deletion_preview(workspace_id, product_id)
+    
+    async def delete_product(self, workspace_id: int, product_id: int) -> bool:
+        """Delete product with simplified logic for API compatibility"""
+        try:
+            return await self.delete_product_cascade(workspace_id, product_id)
+        except Exception as e:
+            logger.warning("Cascade deletion failed, trying simple deletion", 
+                         error=str(e), product_id=product_id)
+            return await self.delete_product_simple(workspace_id, product_id)
+    
+    async def delete_product_simple(
+        self, 
+        workspace_id: int, 
+        product_id: int
+    ) -> bool:
+        """Simple product deletion that relies entirely on database CASCADE constraints"""
+        async with get_db_session() as session:
+            try:
+                logger.info("Starting simple product deletion", 
+                           product_id=product_id,
+                           workspace_id=workspace_id)
+                
+                # Just get and delete the product - let CASCADE handle everything else
+                product_query = select(Product).where(
+                    and_(
+                        Product.id == product_id,
+                        Product.workspace_id == workspace_id
+                    )
+                )
+                product_result = await session.execute(product_query)
+                product = product_result.scalar_one_or_none()
+                
+                if not product:
+                    logger.warning("Product not found for deletion", 
+                                 product_id=product_id,
+                                 workspace_id=workspace_id)
+                    return False
+                
+                # Delete the product - CASCADE should handle all relationships
+                logger.info("Deleting product with CASCADE", 
+                           product_id=product_id,
+                           product_name=product.name)
+                await session.delete(product)
+                
+                logger.info("Simple product deletion completed", 
                            product_id=product_id)
+                
+                return True
+                
+            except Exception as e:
+                logger.error("Simple product deletion failed", 
+                           error=str(e),
+                           product_id=product_id,
+                           workspace_id=workspace_id,
+                           exc_info=True)
                 raise
+    
+    async def get_deletion_preview(self, workspace_id: int, product_id: int) -> Optional[ProductDeletionPreview]:
+        """Alias for get_product_deletion_preview for API compatibility"""
+        return await self.get_product_deletion_preview(workspace_id, product_id)

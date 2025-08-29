@@ -110,16 +110,6 @@ async def create_submarine_project():
         
         print(f"Created submarine product with ID: {product_id}")
         
-        # Create base requirement collection for the product
-        base_req_collection_id = await conn.fetchval("""
-            INSERT INTO req_collection (workspace_id, name, description, created_at)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id
-        """, workspace_id, "Submarine Requirements", 
-            "Main requirement collection for submarine project",
-            datetime.utcnow())
-        
-        print(f"Created base requirement collection with ID: {base_req_collection_id}")
         
         # Create modules and their hierarchical requirements
         for module_name, module_data in SUBMARINE_MODULES.items():
@@ -138,16 +128,6 @@ async def create_submarine_project():
                 VALUES ($1, $2)
             """, product_id, module_id)
             
-            # Create requirement collection for this module
-            req_collection_id = await conn.fetchval("""
-                INSERT INTO req_collection (workspace_id, name, description, created_at)
-                VALUES ($1, $2, $3, $4)
-                RETURNING id
-            """, workspace_id, f"{module_name} Requirements", 
-                f"Requirements for {module_name} module",
-                datetime.utcnow())
-            
-            print(f"Created requirement collection for '{module_name}' with ID: {req_collection_id}")
             
             # Create hierarchical requirements L0-L5
             parent_req_id = None
@@ -161,12 +141,12 @@ async def create_submarine_project():
                 
                 req_id = await conn.fetchval("""
                     INSERT INTO req (
-                        workspace_id, req_collection_id, module_id,
+                        workspace_id, module_id,
                         name, definition, public_id, parent_id,
                         created_at
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
                     RETURNING id
-                """, workspace_id, req_collection_id, module_id,
+                """, workspace_id, module_id,
                     req_data["name"], req_data["desc"], public_id, parent_req_id,
                     datetime.utcnow())
                 
@@ -177,7 +157,6 @@ async def create_submarine_project():
         
         print("\n✅ Submarine project created successfully!")
         print(f"- Product ID: {product_id}")
-        print(f"- Base Requirement Collection ID: {base_req_collection_id}")
         print(f"- Created {len(SUBMARINE_MODULES)} modules")
         print(f"- Created {len(SUBMARINE_MODULES) * 6} requirements (L0-L5 for each module)")
         

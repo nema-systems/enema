@@ -21,6 +21,8 @@ import {
   ChevronDoubleRightIcon,
   FolderIcon,
   ChatBubbleBottomCenterTextIcon,
+  WrenchScrewdriverIcon,
+  BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import { OrganizationSwitcher, UserButton, useAuth, useUser, useOrganization } from "@clerk/clerk-react";
 import axios from "axios";
@@ -217,11 +219,6 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       icon: CubeIcon,
     },
     {
-      name: 'Req Collections',
-      href: `/workspace/${navigationWorkspace.id}/req_collections`,
-      icon: CubeTransparentIcon,
-    },
-    {
       name: 'Requirements',
       href: `/workspace/${navigationWorkspace.id}/requirements`,
       icon: DocumentTextIcon,
@@ -248,6 +245,15 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
     },
   ] : [];
 
+  // Dev navigation items (always available)
+  const devNavigation = [
+    {
+      name: 'Workspace Manager',
+      href: '/dev/workspaces',
+      icon: BuildingOfficeIcon,
+    },
+  ];
+
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={`flex grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 pb-4 transition-all duration-300 ${
       !mobile && sidebarCollapsed ? 'w-16 px-2' : 'px-6'
@@ -266,10 +272,26 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       </div>
       
       <nav className="flex flex-1 flex-col">
-        <ul role="list" className="flex flex-1 flex-col gap-y-7">
-          <li>
+        <ul role="list" className="flex flex-1 flex-col">
+          <li className="flex-1">
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((item) => (
+                <li key={item.name}>
+                  <NavigationItem {...item} collapsed={!mobile && sidebarCollapsed} />
+                </li>
+              ))}
+            </ul>
+          </li>
+          
+          {/* Dev Navigation Section - aligned to bottom */}
+          <li className="mt-auto">
+            <div className={`text-xs font-semibold leading-6 text-gray-400 dark:text-gray-500 mb-2 ${
+              sidebarCollapsed && !mobile ? 'text-center' : ''
+            }`}>
+              {!sidebarCollapsed || mobile ? 'Development' : '•••'}
+            </div>
+            <ul role="list" className="-mx-2 space-y-1">
+              {devNavigation.map((item) => (
                 <li key={item.name}>
                   <NavigationItem {...item} collapsed={!mobile && sidebarCollapsed} />
                 </li>

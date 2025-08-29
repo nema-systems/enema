@@ -112,6 +112,7 @@ export const createTestCase = createAsyncThunk(
   "testcases/createTestCase",
   async (params: {
     workspaceId: number;
+    token: string;
     testcase: {
       name: string;
       test_method: string;
@@ -121,7 +122,7 @@ export const createTestCase = createAsyncThunk(
       metadata?: any;
     };
   }) => {
-    const { workspaceId, testcase } = params;
+    const { workspaceId, token, testcase } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/testcases`),
@@ -129,7 +130,7 @@ export const createTestCase = createAsyncThunk(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(testcase),
       }
@@ -148,6 +149,7 @@ export const updateTestCase = createAsyncThunk(
   "testcases/updateTestCase",
   async (params: {
     workspaceId: number;
+    token: string;
     testcaseId: number;
     updates: Partial<{
       name: string;
@@ -158,7 +160,7 @@ export const updateTestCase = createAsyncThunk(
       metadata: any;
     }>;
   }) => {
-    const { workspaceId, testcaseId, updates } = params;
+    const { workspaceId, token, testcaseId, updates } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`),
@@ -166,7 +168,7 @@ export const updateTestCase = createAsyncThunk(
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(updates),
       }
@@ -183,15 +185,15 @@ export const updateTestCase = createAsyncThunk(
 
 export const deleteTestCase = createAsyncThunk(
   "testcases/deleteTestCase",
-  async (params: { workspaceId: number; testcaseId: number }) => {
-    const { workspaceId, testcaseId } = params;
+  async (params: { workspaceId: number; token: string; testcaseId: number }) => {
+    const { workspaceId, token, testcaseId } = params;
 
     const response = await fetch(
       apiUrl(`/api/v1/workspaces/${workspaceId}/testcases/${testcaseId}`),
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("clerk-token")}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );

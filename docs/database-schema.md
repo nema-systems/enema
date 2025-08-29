@@ -12,6 +12,7 @@ erDiagram
     PRODUCT {
         int id PK
         int workspace_id FK
+        string public_id
         int default_module_id FK
         string name
         string description
@@ -48,7 +49,6 @@ erDiagram
         int parent_module_id FK
         string name
         text description
-        text rules
         boolean shared
         string public_id
         jsonb meta_data
@@ -342,7 +342,7 @@ erDiagram
     MODULE ||--o{ RELEASE : "has releases"
 
     %% Composite Unique Constraints (Database Implementation)
-    %% REQ: UNIQUE(req_collection_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
+    %% REQ: UNIQUE(module_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% TESTCASE: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% RELEASE: UNIQUE(module_id->workspace_id, public_id) - workspace-scoped public_id uniqueness
     %% ASSET: UNIQUE(workspace_id, public_id) - workspace-scoped public_id uniqueness

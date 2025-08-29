@@ -17,6 +17,7 @@ import {
 } from "../store/parameters/parameters.selectors";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ParametersModal, { ParametersFormData } from "../components/modals/parameters-modal";
+import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 
 const ParametersView: React.FC = () => {
@@ -41,6 +42,9 @@ const ParametersView: React.FC = () => {
   const [editingParameter, setEditingParameter] = useState<any>(null);
   const [isCreateLoading, setIsCreateLoading] = useState(false);
   const [isEditLoading, setIsEditLoading] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [parameterToDelete, setParameterToDelete] = useState<any>(null);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,6 +88,7 @@ const ParametersView: React.FC = () => {
     if (workspaceId) {
       try {
         setIsCreateLoading(true);
+        const token = await getToken({ template: "default" });
         
         // Parse value if it's JSON type
         let parsedValue = data.value;
@@ -97,6 +102,7 @@ const ParametersView: React.FC = () => {
         
         await dispatch(createParameter({
           workspaceId: parseInt(workspaceId),
+          token: token!,
           parameter: {
             name: data.name,
             type: data.type,
@@ -134,6 +140,7 @@ const ParametersView: React.FC = () => {
 
     try {
       setIsEditLoading(true);
+      const token = await getToken({ template: "default" });
       
       // Parse value if it's JSON type
       let parsedValue = data.value;
@@ -147,6 +154,7 @@ const ParametersView: React.FC = () => {
 
       await dispatch(updateParameter({
         workspaceId: parseInt(workspaceId),
+        token: token!,
         parameterId: editingParameter.id,
         updates: {
           name: data.name,
@@ -167,15 +175,29 @@ const ParametersView: React.FC = () => {
     }
   };
 
-  const handleDeleteParameter = async (parameterId: number) => {
-    if (workspaceId && confirm("Are you sure you want to delete this parameter?")) {
+  const handleDeleteClick = (parameter: any) => {
+    setParameterToDelete(parameter);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (workspaceId && parameterToDelete) {
       try {
+        setIsDeleteLoading(true);
+        const token = await getToken({ template: "default" });
         await dispatch(deleteParameter({
           workspaceId: parseInt(workspaceId),
-          parameterId
+          token: token!,
+          parameterId: parameterToDelete.id
         })).unwrap();
+        
+        setIsDeleteModalOpen(false);
+        setParameterToDelete(null);
       } catch (error) {
         console.error("Failed to delete parameter:", error);
+        throw error;
+      } finally {
+        setIsDeleteLoading(false);
       }
     }
   };
@@ -341,7 +363,7 @@ const ParametersView: React.FC = () => {
                       </svg>
                     </button>
                     <button
-                      onClick={() => handleDeleteParameter(parameter.id)}
+                      onClick={() => handleDeleteClick(parameter)}
                       className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
                       title="Delete parameter"
                     >
@@ -408,6 +430,20 @@ const ParametersView: React.FC = () => {
         isLoading={isEditLoading}
         editParameter={editingParameter}
         workspaceId={workspaceId!}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setParameterToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        itemName={parameterToDelete?.name || ""}
+        itemType="Parameter"
+        isLoading={isDeleteLoading}
+        warningMessage="This will permanently delete the parameter and all its versions. This action cannot be undone."
       />
     </div>
   );

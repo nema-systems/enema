@@ -4,7 +4,8 @@ import {
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  EllipsisVerticalIcon
+  EllipsisVerticalIcon,
+  PencilIcon
 } from "@heroicons/react/24/outline";
 import { TrashIcon } from "@heroicons/react/24/solid";
 import { useState, useRef, useEffect } from "react";
@@ -18,21 +19,16 @@ interface ModuleInfo {
   requirement_count?: number;
 }
 
-interface ReqCollectionInfo {
-  id: number;
-  name: string;
-  requirement_count?: number;
-}
 
 interface Product {
   id: number;
   workspace_id: number;
+  public_id: string;
   name: string;
   description?: string;
   metadata?: any;
   created_at: string;
-  base_module?: ModuleInfo;
-  req_collection?: ReqCollectionInfo;
+  default_module?: ModuleInfo;
   modules?: ModuleInfo[];
   total_module_requirements?: number;
 }
@@ -42,9 +38,11 @@ interface EnhancedProductCardProps {
   workspaceId: string;
   onClick?: () => void;
   onDelete?: (product: Product) => void;
+  onShowModules?: (product: Product) => void;
+  onEdit?: (product: Product) => void;
 }
 
-const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: EnhancedProductCardProps) => {
+const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete, onShowModules, onEdit }: EnhancedProductCardProps) => {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -95,12 +93,22 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
     }
   };
 
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDropdown(false);
+    if (onEdit) {
+      onEdit(product);
+    }
+  };
+
   const toggleDropdown = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(!showDropdown);
   };
 
-  const hasFullSetup = product.base_module && product.req_collection;
+  // In simplified architecture, all products with modules are considered properly set up
+  const hasDefaultModule = product.default_module;
+  const isFullyConfigured = hasDefaultModule; // Products with default modules are ready to use
 
   return (
     <div
@@ -116,6 +124,9 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
               <h3 className="font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1">
                 {product.name}
               </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mb-1">
+                {product.public_id}
+              </p>
               {product.description && (
                 <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2 mb-2">
                   {product.description}
@@ -125,18 +136,18 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
             
             {/* Setup Status Indicator and Actions */}
             <div className="ml-2 flex-shrink-0 flex items-center space-x-2">
-              {hasFullSetup ? (
-                <div className="flex items-center text-green-600 dark:text-green-400" title="Fully set up">
+              {isFullyConfigured ? (
+                <div className="flex items-center text-green-600 dark:text-green-400" title="Ready to use">
                   <CheckCircleIcon className="h-5 w-5" />
                 </div>
               ) : (
-                <div className="flex items-center text-yellow-600 dark:text-yellow-400" title="Setup incomplete">
+                <div className="flex items-center text-gray-400 dark:text-gray-500" title="No default module">
                   <ExclamationTriangleIcon className="h-5 w-5" />
                 </div>
               )}
               
               {/* Actions Dropdown */}
-              {onDelete && (
+              {(onDelete || onEdit) && (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={toggleDropdown}
@@ -149,13 +160,24 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
                   {showDropdown && (
                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                       <div className="py-1">
-                        <button
-                          onClick={handleDeleteClick}
-                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        >
-                          <TrashIcon className="h-4 w-4 mr-2" />
-                          Delete Product
-                        </button>
+                        {onEdit && (
+                          <button
+                            onClick={handleEditClick}
+                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          >
+                            <PencilIcon className="h-4 w-4 mr-2" />
+                            Edit Product
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            onClick={handleDeleteClick}
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-2" />
+                            Delete Product
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -169,54 +191,88 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
             {/* Module Status */}
             <div className="flex items-center text-sm">
               <CubeIcon className="h-4 w-4 mr-2 text-blue-500" />
-              {product.base_module ? (
+              {product.default_module ? (
                 <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Module:</span> {product.base_module.name}
+                  <span className="font-medium">Default Module:</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/workspace/${workspaceId}/modules/${product.default_module!.id}`);
+                    }}
+                    className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium"
+                  >
+                    {product.default_module.name}
+                  </button>
                 </span>
               ) : (
                 <span className="text-gray-500 dark:text-gray-400">
-                  No module configured
+                  No default module
                 </span>
               )}
             </div>
 
-            {/* Requirements Collection Status */}
+            {/* Requirements Status */}
             <div className="flex items-center text-sm">
               <DocumentTextIcon className="h-4 w-4 mr-2 text-green-500" />
-              {product.req_collection ? (
+              {product.total_module_requirements !== undefined && product.total_module_requirements > 0 ? (
                 <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Requirements:</span> {product.req_collection.name}
-                  {product.req_collection.requirement_count !== undefined && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300">
-                      {product.req_collection.requirement_count} reqs
-                    </span>
-                  )}
+                  <span className="font-medium">Requirements:</span>
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300">
+                    {product.total_module_requirements} reqs
+                  </span>
                 </span>
               ) : (
                 <span className="text-gray-500 dark:text-gray-400">
-                  No requirements collection
+                  No requirements
                 </span>
               )}
             </div>
 
-            {/* Module Requirements Summary */}
+            {/* Associated Modules Summary */}
             {product.modules && product.modules.length > 0 && (
               <div className="flex items-center text-sm">
-                <CubeIcon className="h-4 w-4 mr-2 text-blue-500" />
-                <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Modules:</span> {product.modules.length} modules
-                  {product.total_module_requirements !== undefined && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300">
+                <CubeIcon className="h-4 w-4 mr-2 text-purple-500" />
+                <div className="flex items-center flex-wrap gap-1">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
+                    Associated Modules ({product.modules.length}):
+                  </span>
+                  {product.modules.slice(0, 3).map((module, index) => (
+                    <button
+                      key={module.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/workspace/${workspaceId}/modules/${module.id}`);
+                      }}
+                      className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 hover:underline text-xs"
+                    >
+                      {module.name}{index < Math.min(product.modules!.length, 3) - 1 ? ',' : ''}
+                    </button>
+                  ))}
+                  {product.modules.length > 3 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onShowModules) {
+                          onShowModules(product);
+                        }
+                      }}
+                      className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 hover:underline text-xs font-medium"
+                    >
+                      +{product.modules.length - 3} more
+                    </button>
+                  )}
+                  {product.total_module_requirements !== undefined && product.total_module_requirements > 0 && (
+                    <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300">
                       {product.total_module_requirements} reqs
                     </span>
                   )}
-                </span>
+                </div>
               </div>
             )}
           </div>
 
           {/* Quick Actions */}
-          {hasFullSetup && (
+          {isFullyConfigured && (
             <div className="flex space-x-2 mb-3">
               <button
                 onClick={handleViewRequirements}
@@ -224,9 +280,9 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
               >
                 <DocumentTextIcon className="h-3 w-3 mr-1" />
                 Requirements
-                {product.req_collection?.requirement_count !== undefined && (
+                {product.total_module_requirements !== undefined && product.total_module_requirements > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-indigo-200 dark:bg-indigo-700 text-indigo-800 dark:text-indigo-200">
-                    {product.req_collection.requirement_count}
+                    {product.total_module_requirements}
                   </span>
                 )}
                 <ArrowTopRightOnSquareIcon className="h-3 w-3 ml-1" />
@@ -248,14 +304,14 @@ const EnhancedProductCard = ({ product, workspaceId, onClick, onDelete }: Enhanc
             </div>
           )}
 
-          {/* Setup Guidance */}
-          {!hasFullSetup && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-md p-3 mb-3">
+          {/* Module Status Information */}
+          {!isFullyConfigured && (
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-md p-3 mb-3">
               <div className="flex items-start">
-                <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
-                <div className="text-xs text-yellow-800 dark:text-yellow-200">
-                  <p className="font-medium mb-1">Setup incomplete</p>
-                  <p>This product was created without the automatic setup. Consider recreating it with defaults enabled for the full experience.</p>
+                <ExclamationTriangleIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
+                <div className="text-xs text-gray-600 dark:text-gray-300">
+                  <p className="font-medium mb-1">No default module</p>
+                  <p>Create a module to start organizing requirements for this product.</p>
                 </div>
               </div>
             </div>

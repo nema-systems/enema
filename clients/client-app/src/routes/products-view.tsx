@@ -12,6 +12,7 @@ import DeleteReqCollectionModal from "../components/modals/delete-req-collection
 import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 import SuccessToast from "../components/ui/success-toast";
+import ProductModulesModal from "../components/modals/product-modules-modal";
 import axios from "axios";
 import { apiUrl } from "../utils/api";
 
@@ -23,21 +24,16 @@ interface ModuleInfo {
   requirement_count?: number;
 }
 
-interface ReqCollectionInfo {
-  id: number;
-  name: string;
-  requirement_count?: number;
-}
 
 interface Product {
   id: number;
   workspace_id: number;
+  public_id: string;
   name: string;
   description?: string;
   metadata?: any;
   created_at: string;
-  base_module?: ModuleInfo;
-  req_collection?: ReqCollectionInfo;
+  default_module?: ModuleInfo;
   modules?: ModuleInfo[];
   total_module_requirements?: number;
 }
@@ -61,6 +57,7 @@ const ProductsView = () => {
   
   const [workspaceDetails, setWorkspaceDetails] = useState<Workspace | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [lastCreatedProduct, setLastCreatedProduct] = useState<Product | null>(null);
@@ -71,6 +68,10 @@ const ProductsView = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletionPreview, setDeletionPreview] = useState<any>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  
+  // Modules modal state
+  const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
+  const [productForModules, setProductForModules] = useState<Product | null>(null);
 
   const fetchWorkspace = async () => {
     if (!workspaceId) return;
@@ -113,7 +114,7 @@ const ProductsView = () => {
     }
   };
 
-  const handleCreateProduct = async (formData: ProductFormData) => {
+  const handleSubmitProduct = async (formData: ProductFormData) => {
     if (!workspaceId) return;
 
     setIsCreating(true);
@@ -121,41 +122,79 @@ const ProductsView = () => {
     try {
       const token = await getToken({ template: "default" });
       
-      const response = await axios.post(
-        apiUrl(`/api/v1/workspaces/${workspaceId}/products`),
-        {
-          name: formData.name,
-          description: formData.description,
-          create_defaults: true, // Always create base module and req collection
-          selected_module_ids: formData.selected_module_ids || [], // Include selected shared modules
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+      if (editProduct) {
+        // Update existing product
+        const response = await axios.put(
+          apiUrl(`/api/v1/workspaces/${workspaceId}/products/${editProduct.id}`),
+          {
+            name: formData.name,
+            description: formData.description,
+            selected_module_ids: formData.selected_module_ids,
           },
-        }
-      );
-      
-      const createdProduct = response.data.data;
-      dispatch(addProduct(createdProduct));
-      
-      // Store for success toast
-      setLastCreatedProduct(createdProduct);
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        
+        // Refresh products list to get updated data
+        await fetchProducts();
+      } else {
+        // Create new product
+        const response = await axios.post(
+          apiUrl(`/api/v1/workspaces/${workspaceId}/products`),
+          {
+            name: formData.name,
+            description: formData.description,
+            create_default_module: true, // Always create default module
+            // Note: selected_module_ids removed in simplified architecture
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        
+        const createdProduct = response.data.data;
+        dispatch(addProduct(createdProduct));
+        
+        // Store for success toast
+        setLastCreatedProduct(createdProduct);
+        
+        // Refresh the products list to ensure we have complete module information
+        await fetchProducts();
+      }
       
       // Close modal and show success
       setIsModalOpen(false);
-      setShowSuccessToast(true);
+      setEditProduct(null);
+      if (!editProduct) {
+        setShowSuccessToast(true);
+      }
       
     } catch (err: any) {
-      console.error("Error creating product:", err);
-      alert(err.response?.data?.message || "Failed to create product");
+      console.error("Error saving product:", err);
+      alert(err.response?.data?.message || `Failed to ${editProduct ? 'update' : 'create'} product`);
     } finally {
       setIsCreating(false);
     }
   };
 
   const openCreateModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleShowModules = (product: Product) => {
+    setProductForModules(product);
+    setIsModulesModalOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditProduct(product);
     setIsModalOpen(true);
   };
 
@@ -191,7 +230,7 @@ const ProductsView = () => {
     try {
       const token = await getToken({ template: "default" });
       
-      const response = await axios.delete(
+      await axios.delete(
         apiUrl(`/api/v1/workspaces/${workspaceId}/products/${productToDelete.id}`),
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -309,9 +348,10 @@ const ProductsView = () => {
                   workspaceId={workspaceId!}
                   onClick={() => {
                     // TODO: Navigate to product details or requirements filtered by product
-                    console.log("Navigate to product:", product.id);
                   }}
                   onDelete={handleDeleteProduct}
+                  onShowModules={handleShowModules}
+                  onEdit={handleEditProduct}
                 />
               ))}
             </div>
@@ -322,35 +362,36 @@ const ProductsView = () => {
       {/* Product Creation Modal */}
       <ProductModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateProduct}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditProduct(null);
+        }}
+        onSubmit={handleSubmitProduct}
         isLoading={isCreating}
+        editProduct={editProduct}
         workspaceId={workspaceId!}
       />
 
-      {/* Success Toast */}
-      <SuccessToast
-        isVisible={showSuccessToast}
-        onClose={() => setShowSuccessToast(false)}
-        title="Product Created Successfully!"
-        message={lastCreatedProduct?.base_module && lastCreatedProduct?.req_collection 
-          ? "Your product has been created with a base module and requirements collection." 
-          : "Your product has been created."}
-        createdResources={[
-          ...(lastCreatedProduct?.base_module ? [{
-            type: 'module' as const,
-            id: lastCreatedProduct.base_module.id,
-            name: lastCreatedProduct.base_module.name
-          }] : []),
-          ...(lastCreatedProduct?.req_collection ? [{
-            type: 'req_collection' as const,
-            id: lastCreatedProduct.req_collection.id,
-            name: lastCreatedProduct.req_collection.name
-          }] : [])
-        ]}
-        onViewRequirements={() => navigate(`/workspace/${workspaceId}/requirements?product=${lastCreatedProduct?.id}`)}
-        onViewModules={() => navigate(`/workspace/${workspaceId}/modules?product=${lastCreatedProduct?.id}`)}
-      />
+      {/* Success Toast - only show for new products, not edits */}
+      {!editProduct && (
+        <SuccessToast
+          isVisible={showSuccessToast}
+          onClose={() => setShowSuccessToast(false)}
+          title="Product Created Successfully!"
+          message={lastCreatedProduct?.default_module 
+            ? "Your product has been created with a default module." 
+            : "Your product has been created."}
+          createdResources={[
+            ...(lastCreatedProduct?.default_module ? [{
+              type: 'module' as const,
+              id: lastCreatedProduct.default_module.id,
+              name: lastCreatedProduct.default_module.name
+            }] : [])
+          ]}
+          onViewRequirements={() => navigate(`/workspace/${workspaceId}/requirements?product=${lastCreatedProduct?.id}`)}
+          onViewModules={() => navigate(`/workspace/${workspaceId}/modules?product=${lastCreatedProduct?.id}`)}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
@@ -365,10 +406,23 @@ const ProductsView = () => {
         itemName={productToDelete?.name || ""}
         itemType="Product"
         isLoading={isDeleting}
-        warningMessage="This will permanently delete the product and any modules or requirements collections that were automatically created with it (shared resources will be preserved)."
+        warningMessage="This will permanently delete the product and any modules that were automatically created with it (shared resources will be preserved)."
         deletionPreview={deletionPreview}
         isLoadingPreview={isLoadingPreview}
       />
+
+      {/* Product Modules Modal */}
+      {productForModules && (
+        <ProductModulesModal
+          isOpen={isModulesModalOpen}
+          onClose={() => {
+            setIsModulesModalOpen(false);
+            setProductForModules(null);
+          }}
+          product={productForModules}
+          workspaceId={workspaceId!}
+        />
+      )}
     </div>
   );
 };

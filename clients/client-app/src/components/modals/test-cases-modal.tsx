@@ -27,7 +27,7 @@ interface TestCase {
 
 interface Requirement {
   id: number;
-  req_collection_id: number;
+  module_id: number;
   public_id: string;
   name: string;
   definition: string;

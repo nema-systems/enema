@@ -251,7 +251,7 @@ async def dev_usage():
             "  -d '{\"email\":\"dev@nemasystems.io\",\"password\":\"dev\"}' | jq -r .access_token)",
             "",
             "# Use token:",
-            "curl -X GET 'http://localhost:8000/api/v1/workspaces/1/req_collections' \\",
+            "curl -X GET 'http://localhost:8000/api/v1/workspaces/1/modules' \\",
             "  -H \"Authorization: Bearer $TOKEN\""
         ],
         "available_endpoints": [

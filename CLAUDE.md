@@ -1,0 +1,2 @@
+- Always read all files in the docs folder at startup.
+- If a change is requested that should be included in the docs update the documentation accordingly.

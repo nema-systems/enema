@@ -23,6 +23,7 @@ import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 import RequirementCreationModal, { RequirementFormData } from "../components/modals/requirement-creation-modal";
 import SuccessToast from "../components/ui/success-toast";
+import RequirementsViews from "../components/requirements/requirements-views";
 import { DocumentTextIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import { apiUrl } from "../utils/api";
 
@@ -61,7 +62,7 @@ const RequirementsView = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [lastCreatedRequirement, setLastCreatedRequirement] = useState<any>(null);
-  const [reqCollections, setReqCollections] = useState<any[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
   
   // Edit state
   const [editingRequirement, setEditingRequirement] = useState<any>(null);
@@ -144,13 +145,13 @@ const RequirementsView = () => {
     }
   };
 
-  const fetchReqCollections = async () => {
+  const fetchModules = async () => {
     if (!workspaceId) return;
     
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        apiUrl(`/api/v1/workspaces/${workspaceId}/req_collections`),
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
         {
           headers: { Authorization: `Bearer ${token}` },
           params: {
@@ -160,9 +161,9 @@ const RequirementsView = () => {
           }
         }
       );
-      setReqCollections(response.data.data?.items || []);
+      setModules(response.data.data?.items || []);
     } catch (err: any) {
-      console.error("Error fetching req collections:", err);
+      console.error("Error fetching modules:", err);
     }
   };
   
@@ -193,7 +194,7 @@ const RequirementsView = () => {
       const token = await getToken({ template: "default" });
       
       const payload = {
-        req_collection_id: formData.req_collection_id,
+        module_id: formData.module_id,
         parent_req_id: formData.parent_req_id,
         name: formData.name,
         definition: formData.definition,
@@ -275,7 +276,7 @@ const RequirementsView = () => {
     if (workspaceId) {
       fetchWorkspace();
       fetchRequirements();
-      fetchReqCollections();
+      fetchModules();
       fetchProducts();
     }
     
@@ -310,12 +311,14 @@ const RequirementsView = () => {
       }
       if (productFilter !== "all") {
         const selectedProduct = products.find(p => p.id.toString() === productFilter);
-        if (selectedProduct?.req_collection) {
-          if (req.req_collection_id !== selectedProduct.req_collection.id) {
+        if (selectedProduct?.modules && selectedProduct.modules.length > 0) {
+          // Check if requirement belongs to any module of the selected product
+          const productModuleIds = selectedProduct.modules.map(m => m.id);
+          if (!productModuleIds.includes(req.module_id)) {
             return false;
           }
         } else {
-          // If product has no req_collection, show no requirements
+          // If product has no modules, show no requirements
           return false;
         }
       }
@@ -462,7 +465,7 @@ const RequirementsView = () => {
                 className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="all">All Products</option>
-                {products.filter(p => p.req_collection).map((product) => (
+                {products.filter(p => p.modules && p.modules.length > 0).map((product) => (
                   <option key={product.id} value={product.id.toString()}>
                     {product.name}
                   </option>
@@ -650,7 +653,7 @@ const RequirementsView = () => {
         }}
         onSubmit={handleCreateOrUpdateRequirement}
         isLoading={isCreating || isUpdating}
-        reqCollections={reqCollections}
+        modules={modules}
         workspaceId={workspaceId!}
         editRequirement={editingRequirement}
       />

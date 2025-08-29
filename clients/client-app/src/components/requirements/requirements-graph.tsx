@@ -18,6 +18,47 @@ import dagre from 'dagre';
 
 import 'reactflow/dist/style.css';
 
+interface Requirement {
+  id: number;
+  base_req_id?: number;
+  parent_req_id?: number;
+  prev_version?: number;
+  module_id: number;
+  author_id: number;
+  owner_id?: number;
+  public_id: string;
+  name: string;
+  definition: string;
+  version_number: number;
+  level: string;
+  priority: string;
+  functional: string;
+  validation_method: string;
+  status: string;
+  rationale?: string;
+  notes?: string;
+  meta_data?: any;
+  created_at: string;
+  // Relationships
+  module?: {
+    id: number;
+    name: string;
+    public_id: string;
+  };
+  author?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  owner?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  parent_req?: Requirement;
+  children?: Requirement[];
+}
+
 // Custom Node Component
 const RequirementNode = ({ data }: { data: any }) => {
   const getNodeColor = (priority: string) => {
@@ -116,24 +157,6 @@ const RequirementNode = ({ data }: { data: any }) => {
 const nodeTypes = {
   requirement: RequirementNode,
 };
-
-interface Requirement {
-  id: number;
-  req_collection_id: number;
-  public_id: string;
-  name: string;
-  definition: string;
-  level: string;
-  priority: string;
-  functional: string;
-  validation_method: string;
-  status: string;
-  rationale?: string;
-  notes?: string;
-  version_number: number;
-  created_at: string;
-  parent_req_id?: number;
-}
 
 interface RequirementsGraphProps {
   requirements: Requirement[];
