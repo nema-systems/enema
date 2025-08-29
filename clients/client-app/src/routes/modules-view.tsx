@@ -18,7 +18,7 @@ const ModulesView: React.FC = () => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
-  const { setModule, setWorkspace } = useGlobalFilter();
+  const { setModule, setWorkspace, filter } = useGlobalFilter();
   
   const modules = useAppSelector(selectModules);
   const loading = useAppSelector(selectModulesLoading);
@@ -60,6 +60,11 @@ const ModulesView: React.FC = () => {
       
       // Build query params - show all modules including default/base modules
       const params: any = {};
+      
+      // Use global filter for product filtering
+      if (filter.product?.id) {
+        params.product_id = filter.product.id;
+      }
       
       const response = await axios.get(
         apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
@@ -212,7 +217,7 @@ const ModulesView: React.FC = () => {
     }
     fetchModules();
     fetchProducts();
-  }, [workspaceId, setWorkspace]);
+  }, [workspaceId, setWorkspace, filter.product?.id]);
   
 
   

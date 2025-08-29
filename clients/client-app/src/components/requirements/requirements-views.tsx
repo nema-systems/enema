@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { 
   ListBulletIcon, 
@@ -85,22 +85,33 @@ const RequirementsViews = ({
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [contentLoading, setContentLoading] = useState(false);
   
   // Filters and search
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [functionalFilter, setFunctionalFilter] = useState<string>("all");
   
+  // Debounce timer ref
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Tree view state
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
   // Fetch requirements
-  const fetchRequirements = useCallback(async () => {
+  const fetchRequirements = useCallback(async (isInitial = false) => {
     if (!workspaceId) return;
 
-    setLoading(true);
+    // Use different loading states for initial load vs subsequent searches/filters
+    if (isInitial || loading) {
+      setLoading(true);
+    } else {
+      setContentLoading(true);
+    }
     setError(null);
 
     try {
@@ -117,7 +128,7 @@ const RequirementsViews = ({
       if (statusFilter !== "all") params.append('status', statusFilter);
       if (priorityFilter !== "all") params.append('priority', priorityFilter);
       if (levelFilter !== "all") params.append('level', levelFilter);
-      if (searchQuery.trim()) params.append('search', searchQuery.trim());
+      if (debouncedSearchQuery.trim()) params.append('search', debouncedSearchQuery.trim());
       
       // Set limit to maximum allowed by backend
       params.append('limit', '100');
@@ -145,19 +156,52 @@ const RequirementsViews = ({
       }
     } finally {
       setLoading(false);
+      setContentLoading(false);
     }
-  }, [getToken, workspaceId, filter.module?.id, filter.product?.id, moduleId, productId, statusFilter, priorityFilter, levelFilter, searchQuery]);
+  }, [getToken, workspaceId, filter.module?.id, filter.product?.id, moduleId, productId, statusFilter, priorityFilter, levelFilter, debouncedSearchQuery]);
 
   useEffect(() => {
-    fetchRequirements();
-  }, [fetchRequirements]);
+    fetchRequirements(true); // Initial load
+  }, []);
+
+  // Handle filter and search changes (non-initial loads)
+  useEffect(() => {
+    if (loading) return; // Skip if still in initial load
+    fetchRequirements(false); // Content refresh only
+  }, [filter.module?.id, filter.product?.id, moduleId, productId, statusFilter, priorityFilter, levelFilter, debouncedSearchQuery]);
+
+  // Debounce search input
+  useEffect(() => {
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Show searching indicator when user is typing
+    if (searchQuery !== debouncedSearchQuery) {
+      setIsSearching(true);
+    }
+
+    // Set new timeout for debouncing
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setIsSearching(false);
+    }, 300); // 300ms debounce delay
+
+    // Cleanup function
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, debouncedSearchQuery]);
 
   // Expose refresh function to parent component
   useEffect(() => {
     if (onRefreshRef) {
-      onRefreshRef(fetchRequirements);
+      onRefreshRef(() => fetchRequirements(false)); // Content refresh for external calls
     }
-  }, [onRefreshRef, fetchRequirements]);
+  }, [onRefreshRef]);
 
   // Build hierarchical structure for tree view
   const hierarchicalRequirements = useMemo(() => {
@@ -290,7 +334,18 @@ const RequirementsViews = ({
 
   const renderListView = () => (
     <div className="space-y-2">
-      {filteredRequirements.map((req) => (
+      {contentLoading && (
+        <div className="flex justify-center py-8">
+          <div className="flex items-center space-x-2 text-indigo-600">
+            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-sm">Searching...</span>
+          </div>
+        </div>
+      )}
+      {!contentLoading && filteredRequirements.map((req) => (
         <div key={req.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-3">
@@ -345,7 +400,17 @@ const RequirementsViews = ({
 
   const renderTreeView = () => (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-      {hierarchicalRequirements.length === 0 ? (
+      {contentLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="flex items-center space-x-2 text-indigo-600">
+            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-sm">Searching...</span>
+          </div>
+        </div>
+      ) : hierarchicalRequirements.length === 0 ? (
         <div className="p-8 text-center text-gray-500 dark:text-gray-400">
           No requirements found
         </div>
@@ -359,7 +424,19 @@ const RequirementsViews = ({
 
   const renderGraphView = () => (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 h-[600px] min-h-96">
-      <RequirementsGraph requirements={requirements} />
+      {contentLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="flex items-center space-x-2 text-indigo-600">
+            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-sm">Searching...</span>
+          </div>
+        </div>
+      ) : (
+        <RequirementsGraph requirements={requirements} />
+      )}
     </div>
   );
 
@@ -427,7 +504,14 @@ const RequirementsViews = ({
 
         {/* Search */}
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {isSearching ? (
+            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          )}
           <input
             type="text"
             placeholder="Search requirements..."

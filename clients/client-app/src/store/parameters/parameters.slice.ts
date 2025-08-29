@@ -36,6 +36,8 @@ export const fetchParameters = createAsyncThunk(
     token: string;
     page?: number;
     limit?: number;
+    product_id?: number;  // New parameter for product filtering
+    module_id?: number;   // New parameter for module filtering
     component_id?: number;
     type?: string;
     group_id?: string;

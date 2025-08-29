@@ -19,11 +19,13 @@ import LoadingSpinner from "../components/ui/loading-spinner";
 import ParametersModal, { ParametersFormData } from "../components/modals/parameters-modal";
 import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
+import { useGlobalFilter } from "../contexts/global-filter-context";
 
 const ParametersView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const dispatch = useAppDispatch();
   const { getToken } = useAuth();
+  const { filter, setWorkspace } = useGlobalFilter();
 
   const parameters = useAppSelector(selectParameters);
   const loading = useAppSelector(selectParametersLoading);
@@ -53,6 +55,8 @@ const ParametersView: React.FC = () => {
         dispatch(fetchParameters({ 
           workspaceId: parseInt(workspaceId),
           token: token!,
+          product_id: filter.product?.id,
+          module_id: filter.module?.id,
           search: searchQuery || undefined,
           type: selectedType || undefined,
           group_id: selectedGroup || undefined,
@@ -62,7 +66,14 @@ const ParametersView: React.FC = () => {
       }
     };
     fetchData();
-  }, [dispatch, workspaceId, searchQuery, selectedType, selectedGroup, sortBy, sortOrder, getToken]);
+  }, [dispatch, workspaceId, searchQuery, selectedType, selectedGroup, sortBy, sortOrder, getToken, filter.product?.id, filter.module?.id]);
+
+  // Set workspace in global filter when component mounts
+  useEffect(() => {
+    if (workspaceId) {
+      setWorkspace(workspaceId);
+    }
+  }, [workspaceId, setWorkspace]);
 
   useEffect(() => {
     return () => {
@@ -75,6 +86,8 @@ const ParametersView: React.FC = () => {
     if (workspaceId) {
       dispatch(fetchParameters({ 
         workspaceId: parseInt(workspaceId),
+        product_id: filter.product?.id,
+        module_id: filter.module?.id,
         search: searchQuery || undefined,
         type: selectedType || undefined,
         group_id: selectedGroup || undefined,

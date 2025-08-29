@@ -18,12 +18,14 @@ import LoadingSpinner from "../components/ui/loading-spinner";
 import TestCasesModal, { TestCasesFormData } from "../components/modals/test-cases-modal";
 import DeleteConfirmationModal from "../components/modals/delete-confirmation-modal";
 import { apiUrl } from "../utils/api";
+import { useGlobalFilter } from "../contexts/global-filter-context";
 
 const TestCasesView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { getToken } = useAuth();
+  const { filter, setWorkspace } = useGlobalFilter();
 
   const testcases = useAppSelector(selectTestCases);
   const loading = useAppSelector(selectTestCasesLoading);
@@ -54,6 +56,8 @@ const TestCasesView: React.FC = () => {
         dispatch(fetchTestCases({ 
           workspaceId: parseInt(workspaceId),
           token: token!,
+          product_id: filter.product?.id,
+          module_id: filter.module?.id,
           search: searchQuery || undefined,
           sort: sortBy,
           order: sortOrder
@@ -76,7 +80,14 @@ const TestCasesView: React.FC = () => {
       }
     };
     fetchData();
-  }, [dispatch, workspaceId, searchQuery, sortBy, sortOrder, getToken]);
+  }, [dispatch, workspaceId, searchQuery, sortBy, sortOrder, getToken, filter.product?.id, filter.module?.id]);
+
+  // Set workspace in global filter when component mounts
+  useEffect(() => {
+    if (workspaceId) {
+      setWorkspace(workspaceId);
+    }
+  }, [workspaceId, setWorkspace]);
 
   useEffect(() => {
     return () => {
@@ -91,6 +102,8 @@ const TestCasesView: React.FC = () => {
       dispatch(fetchTestCases({ 
         workspaceId: parseInt(workspaceId),
         token: token!,
+        product_id: filter.product?.id,
+        module_id: filter.module?.id,
         search: searchQuery || undefined,
         sort: sortBy,
         order: sortOrder

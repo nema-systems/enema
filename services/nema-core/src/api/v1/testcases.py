@@ -178,6 +178,8 @@ async def list_testcases(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     # Filtering
+    product_id: Optional[int] = Query(None),  # New filter for product
+    module_id: Optional[int] = Query(None),   # New filter for module
     status: Optional[str] = Query(None),
     tag_id: Optional[int] = Query(None),
     group_id: Optional[int] = Query(None),
@@ -195,6 +197,27 @@ async def list_testcases(
     query = select(TestCase).where(TestCase.workspace_id == workspace_id)
     
     # Apply filters
+    if product_id:
+        # Filter by product association - get test cases linked to requirements in modules associated with the product
+        from ...database.models import TestcaseRequirement, Req, Module, ProductModule
+        query = (
+            query
+            .join(TestcaseRequirement, TestcaseRequirement.test_case_id == TestCase.id)
+            .join(Req, Req.id == TestcaseRequirement.req_id)
+            .join(Module, Module.id == Req.module_id)
+            .join(ProductModule, ProductModule.module_id == Module.id)
+            .where(ProductModule.product_id == product_id)
+        )
+    elif module_id:
+        # Filter by module association - get test cases linked to requirements in the specific module
+        from ...database.models import TestcaseRequirement, Req
+        query = (
+            query
+            .join(TestcaseRequirement, TestcaseRequirement.test_case_id == TestCase.id)
+            .join(Req, Req.id == TestcaseRequirement.req_id)
+            .where(Req.module_id == module_id)
+        )
+    
     if tag_id:
         from ...database.models import TestcaseTag
         query = query.join(TestcaseTag).where(

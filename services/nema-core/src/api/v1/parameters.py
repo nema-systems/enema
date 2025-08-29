@@ -123,6 +123,7 @@ async def list_parameters(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     # Filtering
+    product_id: Optional[int] = Query(None),  # New filter for product
     module_id: Optional[int] = Query(None),
     type: Optional[str] = Query(None),
     group_id: Optional[str] = Query(None),
@@ -141,7 +142,20 @@ async def list_parameters(
     query = select(Param)
     
     # Filter by component association if specified
-    if module_id:
+    if product_id:
+        # Filter by product association - get parameters from modules associated with the product
+        from ...database.models import ModuleParameter, ProductModule
+        query = (
+            query
+            .join(ModuleParameter, ModuleParameter.param_id == Param.id)
+            .join(Module, Module.id == ModuleParameter.module_id)
+            .join(ProductModule, ProductModule.module_id == Module.id)
+            .where(
+                Module.workspace_id == workspace_id,
+                ProductModule.product_id == product_id
+            )
+        )
+    elif module_id:
         from ...database.models import ModuleParameter
         query = query.join(ModuleParameter).join(Module).where(
             Module.workspace_id == workspace_id,

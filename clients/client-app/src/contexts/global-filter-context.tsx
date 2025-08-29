@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 export interface Product {
   id: number;
@@ -51,7 +52,51 @@ interface GlobalFilterProviderProps {
 }
 
 export const GlobalFilterProvider: React.FC<GlobalFilterProviderProps> = ({ children }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<GlobalFilter>({});
+
+  // Initialize filter from URL parameters on mount
+  useEffect(() => {
+    const productId = searchParams.get('product_id');
+    const moduleId = searchParams.get('module_id');
+    const workspaceId = searchParams.get('workspace_id');
+    
+    // Only set if we have URL parameters
+    if (productId || moduleId || workspaceId) {
+      setFilter(prev => ({
+        ...prev,
+        workspaceId: workspaceId || prev.workspaceId,
+        // We'll need to fetch product/module details from IDs later
+        // For now, just store the IDs
+        product: productId ? { id: parseInt(productId) } as Product : prev.product,
+        module: moduleId ? { id: parseInt(moduleId) } as Module : prev.module,
+      }));
+    }
+  }, []);
+
+  // Update URL parameters when filter changes
+  const updateUrlParams = useCallback((newFilter: GlobalFilter) => {
+    const params = new URLSearchParams(searchParams);
+    
+    if (newFilter.product) {
+      params.set('product_id', newFilter.product.id.toString());
+      params.delete('module_id'); // Clear module if product is set
+    } else {
+      params.delete('product_id');
+    }
+    
+    if (newFilter.module && !newFilter.product) {
+      params.set('module_id', newFilter.module.id.toString());
+    } else if (!newFilter.module) {
+      params.delete('module_id');
+    }
+    
+    if (newFilter.workspaceId) {
+      params.set('workspace_id', newFilter.workspaceId);
+    }
+    
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const setProduct = useCallback((product: Product | undefined) => {
     setFilter(prev => ({ 
@@ -73,7 +118,6 @@ export const GlobalFilterProvider: React.FC<GlobalFilterProviderProps> = ({ chil
 
   const setWorkspace = useCallback((workspaceId: string | undefined) => {
     setFilter(prev => {
-      // Only clear product and module if workspace is actually changing
       const isWorkspaceChanging = prev.workspaceId !== workspaceId;
       return {
         ...prev,
@@ -88,6 +132,11 @@ export const GlobalFilterProvider: React.FC<GlobalFilterProviderProps> = ({ chil
   const clearFilter = useCallback(() => {
     setFilter(prev => ({ workspaceId: prev.workspaceId }));
   }, []);
+
+  // Sync URL parameters whenever filter changes
+  useEffect(() => {
+    updateUrlParams(filter);
+  }, [filter, updateUrlParams]);
 
   const hasFilter = useMemo(() => !!(filter.product || filter.module), [filter.product, filter.module]);
 

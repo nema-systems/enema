@@ -50,6 +50,8 @@ export const fetchTestCases = createAsyncThunk(
     token: string;
     page?: number;
     limit?: number;
+    product_id?: number;  // New parameter for product filtering
+    module_id?: number;   // New parameter for module filtering
     status?: string;
     tag_id?: number;
     group_id?: number;
