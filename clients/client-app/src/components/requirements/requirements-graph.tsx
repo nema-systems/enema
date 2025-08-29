@@ -318,7 +318,7 @@ const RequirementsGraph: React.FC<RequirementsGraphProps> = ({
 
   if (requirements.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-900 rounded-lg ${className}`}>
+      <div className={`flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900 rounded-lg ${className}`}>
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 text-gray-400">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,7 +337,7 @@ const RequirementsGraph: React.FC<RequirementsGraphProps> = ({
   }
 
   return (
-    <div className={`h-96 ${className}`}>
+    <div className={`h-full ${className}`}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

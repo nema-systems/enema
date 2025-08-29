@@ -152,7 +152,6 @@ async def list_requirements(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     # Filtering
-    component_id: Optional[int] = Query(None),
     product_id: Optional[int] = Query(None),  # New filter for product
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
@@ -179,13 +178,6 @@ async def list_requirements(
     )
     
     # Apply filters
-    if component_id:
-        # Filter by module association
-        from ...database.models import ModuleRequirement
-        query = query.join(ModuleRequirement).where(
-            ModuleRequirement.module_id == component_id
-        )
-    
     if status:
         query = query.where(Req.status == status)
     

@@ -10,6 +10,7 @@ import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 import { CubeIcon, PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import ModuleModal, { ModuleFormData } from "../components/modals/module-modal";
+import { useGlobalFilter } from "../contexts/global-filter-context";
 import { apiUrl } from "../utils/api";
 
 const ModulesView: React.FC = () => {
@@ -17,13 +18,13 @@ const ModulesView: React.FC = () => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
+  const { setModule, setWorkspace } = useGlobalFilter();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const modules = useAppSelector(selectModules);
   const loading = useAppSelector(selectModulesLoading);
   const error = useAppSelector(selectModulesError);
   
-  const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "created_at">(searchParams.get('sortBy') as "name" | "created_at" || "created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(searchParams.get('sortOrder') as "asc" | "desc" || "desc");
   const [productFilter, setProductFilter] = useState<string>(searchParams.get('product') || "all");
@@ -65,9 +66,8 @@ const ModulesView: React.FC = () => {
       const params: any = {};
       if (productFilter !== "all") {
         params.product_id = productFilter;
-      } else {
-        params.shared = true; // Only show shared modules when not filtering by product
       }
+      // Remove shared filter - show all modules including default/base modules
       
       const response = await axios.get(
         apiUrl(`/api/v1/workspaces/${workspaceId}/modules`),
@@ -217,9 +217,12 @@ const ModulesView: React.FC = () => {
   };
   
   useEffect(() => {
+    if (workspaceId) {
+      setWorkspace(workspaceId);
+    }
     fetchModules();
     fetchProducts();
-  }, [workspaceId]);
+  }, [workspaceId, setWorkspace]);
   
   // Refetch modules when product filter changes
   useEffect(() => {
@@ -243,15 +246,8 @@ const ModulesView: React.FC = () => {
     setSearchParams(newSearchParams);
   };
   
-  // Filter and sort modules (filtering by product is now done server-side)
-  const filteredModules = modules
-    .filter(module => {
-      // Search filter
-      const matchesSearch = module.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        module.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesSearch;
-    })
+  // Sort modules (filtering by product is now done server-side)
+  const sortedModules = [...modules]
     .sort((a, b) => {
       const aVal = sortBy === "name" ? a.name : new Date(a.created_at).getTime();
       const bVal = sortBy === "name" ? b.name : new Date(b.created_at).getTime();
@@ -274,7 +270,7 @@ const ModulesView: React.FC = () => {
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             {productFilter === "all" 
-              ? "Manage your system modules"
+              ? "Manage your system modules including base modules"
               : `Showing modules for: ${products.find(p => p.id.toString() === productFilter)?.name || 'Selected Product'}`
             }
           </p>
@@ -288,17 +284,8 @@ const ModulesView: React.FC = () => {
         </button>
       </div>
 
-      {/* Search and Sort Controls */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search modules..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-          />
-        </div>
+      {/* Filter and Sort Controls */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-end">
         <div className="flex gap-2">
           <select
             value={productFilter}
@@ -309,7 +296,7 @@ const ModulesView: React.FC = () => {
             }}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
           >
-            <option value="all">All Shared Modules</option>
+            <option value="all">All Modules</option>
             {products.map((product) => (
               <option key={product.id} value={product.id.toString()}>
                 {product.name} - All Associated Modules
@@ -348,7 +335,7 @@ const ModulesView: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">
             {productFilter === "all" 
-              ? `Shared Modules (${modules.length})` 
+              ? `All Modules (${modules.length})` 
               : `Modules for ${products.find(p => p.id.toString() === productFilter)?.name || 'Product'} (${modules.length})`
             }
           </h2>
@@ -367,7 +354,7 @@ const ModulesView: React.FC = () => {
                 onRetry={fetchModules}
               />
             </div>
-          ) : filteredModules.length === 0 ? (
+          ) : sortedModules.length === 0 ? (
             <div className="text-center py-12">
               <CubeIcon className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -391,10 +378,14 @@ const ModulesView: React.FC = () => {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredModules.map((module) => (
+              {sortedModules.map((module) => (
                 <div
                   key={module.id}
-                  onClick={() => navigate(`/workspace/${workspaceId}/modules/${module.id}`)}
+                  onClick={() => {
+                    // Set the module as the global filter
+                    setModule(module);
+                    navigate(`/workspace/${workspaceId}/modules/${module.id}`);
+                  }}
                   className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden group"
                 >
                   <div className="flex">

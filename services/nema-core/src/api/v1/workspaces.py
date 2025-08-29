@@ -286,8 +286,17 @@ async def delete_workspace(
 ):
     """Delete workspace"""
     
-    # In production, you might want to soft delete or prevent deletion if workspace has data
-    await db.delete(workspace)
-    await db.commit()
-    
-    logger.info("Workspace deleted", workspace_id=workspace.id)
+    try:
+        # In production, you might want to soft delete or prevent deletion if workspace has data
+        await db.delete(workspace)
+        await db.commit()
+        
+        logger.info("Workspace deleted", workspace_id=workspace.id)
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error("Failed to delete workspace", workspace_id=workspace.id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete workspace: {str(e)}"
+        )

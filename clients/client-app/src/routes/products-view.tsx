@@ -13,6 +13,7 @@ import LoadingSpinner from "../components/ui/loading-spinner";
 import ErrorMessage from "../components/ui/error-message";
 import SuccessToast from "../components/ui/success-toast";
 import ProductModulesModal from "../components/modals/product-modules-modal";
+import { useGlobalFilter } from "../contexts/global-filter-context";
 import axios from "axios";
 import { apiUrl } from "../utils/api";
 
@@ -49,6 +50,7 @@ const ProductsView = () => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useAppDispatch();
+  const { setProduct, setWorkspace } = useGlobalFilter();
   
   const products = useAppSelector(selectProducts);
   const loading = useAppSelector(selectProductsLoading);
@@ -254,6 +256,7 @@ const ProductsView = () => {
 
   useEffect(() => {
     if (workspaceId) {
+      setWorkspace(workspaceId);
       fetchWorkspace();
       fetchProducts();
     }
@@ -261,7 +264,7 @@ const ProductsView = () => {
     return () => {
       dispatch(clearProducts());
     };
-  }, [workspaceId, dispatch]);
+  }, [workspaceId, dispatch, setWorkspace]);
 
 
   return (
@@ -347,7 +350,10 @@ const ProductsView = () => {
                   product={product}
                   workspaceId={workspaceId!}
                   onClick={() => {
-                    // TODO: Navigate to product details or requirements filtered by product
+                    // Set the product as the global filter
+                    setProduct(product);
+                    // Navigate to requirements view to see filtered results
+                    navigate(`/workspace/${workspaceId}/requirements`);
                   }}
                   onDelete={handleDeleteProduct}
                   onShowModules={handleShowModules}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { 
   ListBulletIcon, 
@@ -13,6 +13,8 @@ import axios from "axios";
 import { apiUrl } from "../../utils/api";
 import LoadingSpinner from "../ui/loading-spinner";
 import ErrorMessage from "../ui/error-message";
+import { useGlobalFilter } from "../../contexts/global-filter-context";
+import GlobalFilterIndicator from "../ui/global-filter-indicator";
 
 // Import the existing graph component
 import RequirementsGraph from "./requirements-graph";
@@ -65,15 +67,20 @@ interface RequirementsViewsProps {
   moduleId?: number; // Optional - if provided, filter by module
   productId?: number; // Optional - if provided, filter by product modules
   className?: string;
+  standalone?: boolean; // If true, shows the global filter indicator
+  onRefreshRef?: (refreshFn: () => void) => void; // Callback to expose refresh function
 }
 
 const RequirementsViews = ({ 
   workspaceId, 
   moduleId, 
   productId, 
-  className = "" 
+  className = "",
+  standalone = false,
+  onRefreshRef
 }: RequirementsViewsProps) => {
   const { getToken } = useAuth();
+  const { filter, clearFilter } = useGlobalFilter();
   const [currentView, setCurrentView] = useState<ViewType>('list');
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +97,7 @@ const RequirementsViews = ({
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
   // Fetch requirements
-  const fetchRequirements = async () => {
+  const fetchRequirements = useCallback(async () => {
     if (!workspaceId) return;
 
     setLoading(true);
@@ -100,16 +107,20 @@ const RequirementsViews = ({
       const token = await getToken({ template: "default" });
       const params = new URLSearchParams();
       
+      // Use global filter first, then fall back to props
+      const effectiveModuleId = filter.module?.id || moduleId;
+      const effectiveProductId = filter.product?.id || productId;
+      
       // Add filters
-      if (moduleId) params.append('component_id', moduleId.toString());
-      if (productId) params.append('product_id', productId.toString());
+      if (effectiveModuleId) params.append('module_id', effectiveModuleId.toString());
+      if (effectiveProductId) params.append('product_id', effectiveProductId.toString());
       if (statusFilter !== "all") params.append('status', statusFilter);
       if (priorityFilter !== "all") params.append('priority', priorityFilter);
       if (levelFilter !== "all") params.append('level', levelFilter);
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
       
-      // Set large limit to get all requirements for tree/graph views
-      params.append('limit', '1000');
+      // Set limit to maximum allowed by backend
+      params.append('limit', '100');
 
       const response = await axios.get(
         apiUrl(`/api/v1/workspaces/${workspaceId}/requirements?${params}`),
@@ -122,15 +133,31 @@ const RequirementsViews = ({
       setRequirements(reqData);
     } catch (err: any) {
       console.error("Error fetching requirements:", err);
-      setError(err.response?.data?.message || "Failed to fetch requirements");
+      console.error("API Response:", err.response?.data);
+      
+      // Handle specific error cases
+      if (err.response?.status === 422) {
+        const validationErrors = err.response?.data?.detail;
+        console.warn("API validation failed:", validationErrors);
+        setError(`Validation error: ${JSON.stringify(validationErrors[0]?.msg || 'Invalid parameters')}`);
+      } else {
+        setError(err.response?.data?.detail || err.response?.data?.message || "Failed to fetch requirements");
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken, workspaceId, filter.module?.id, filter.product?.id, moduleId, productId, statusFilter, priorityFilter, levelFilter, searchQuery]);
 
   useEffect(() => {
     fetchRequirements();
-  }, [workspaceId, moduleId, productId, statusFilter, priorityFilter, levelFilter, searchQuery]);
+  }, [fetchRequirements]);
+
+  // Expose refresh function to parent component
+  useEffect(() => {
+    if (onRefreshRef) {
+      onRefreshRef(fetchRequirements);
+    }
+  }, [onRefreshRef, fetchRequirements]);
 
   // Build hierarchical structure for tree view
   const hierarchicalRequirements = useMemo(() => {
@@ -331,7 +358,7 @@ const RequirementsViews = ({
   );
 
   const renderGraphView = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 h-96">
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 h-[600px] min-h-96">
       <RequirementsGraph requirements={requirements} />
     </div>
   );
@@ -356,6 +383,9 @@ const RequirementsViews = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Global Filter Indicator */}
+      {standalone && <GlobalFilterIndicator />}
+      
       {/* Header with view toggle and filters */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* View Toggle */}

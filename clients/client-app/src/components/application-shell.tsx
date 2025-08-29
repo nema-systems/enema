@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useEffect, ReactNode } from "react";
+import React, { Fragment, useState, useEffect, ReactNode, useMemo, useCallback } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import {
   Bars3Icon,
@@ -30,6 +30,8 @@ import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { selectWorkspaces } from "../store/workspaces/workspaces.selectors";
 import { selectSelectedWorkspace } from "../store/workspaces/workspaces.selectors";
 import { setWorkspaces, setSelectedWorkspaceId } from "../store/workspaces/workspaces.slice";
+import { useGlobalFilter } from "../contexts/global-filter-context";
+import SelectedFilterDisplay from "./ui/selected-filter-display";
 import NemaLogo from "../icons/nema-logo";
 import { apiUrl } from "../utils/api";
 
@@ -97,9 +99,38 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { workspaceId } = useParams();
-  const { getToken } = useAuth();
-  const { user } = useUser();
-  const { organization } = useOrganization();
+  const { getToken, isLoaded: authLoaded } = useAuth();
+  const { user, isLoaded: userLoaded } = useUser();
+  const { organization, isLoaded: orgLoaded } = useOrganization();
+  const { hasFilter } = useGlobalFilter();
+  
+  // Memoize appearance configurations to prevent re-renders
+  const organizationSwitcherAppearance = useMemo(() => ({
+    elements: {
+      organizationSwitcherTrigger: {
+        width: '100%',
+        padding: '8px',
+        textAlign: 'left' as const,
+        fontSize: '14px',
+        fontWeight: '500',
+        borderRadius: '6px',
+        transition: 'all 0.2s ease',
+        backgroundColor: 'transparent'
+      }
+    }
+  }), []); // Remove theme dependency to prevent re-renders
+
+  const userButtonAppearance = useMemo(() => ({
+    elements: {
+      userButtonAvatarBox: "w-8 h-8",
+      userButtonPopoverCard: "w-64"
+    }
+  }), []);
+
+  // Check if auth is stable (prevents flickering during token refresh)
+  const isAuthStable = useMemo(() => {
+    return authLoaded && userLoaded && orgLoaded && !!user;
+  }, [authLoaded, userLoaded, orgLoaded, user]);
   
   const workspaces = useAppSelector(selectWorkspaces);
   const selectedWorkspace = useAppSelector(selectSelectedWorkspace);
@@ -177,16 +208,6 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
         const workspaceList = response.data.data || [];
         dispatch(setWorkspaces(workspaceList));
         
-        // Clear selected workspace if it's not in the new list (org changed)
-        if (selectedWorkspace && !workspaceList.find(w => w.id === selectedWorkspace.id)) {
-          dispatch(setSelectedWorkspaceId(''));
-        }
-        
-        // Auto-select first workspace if none selected and we have workspaces
-        if (!selectedWorkspace && workspaceList.length > 0) {
-          dispatch(setSelectedWorkspaceId(workspaceList[0].id.toString()));
-        }
-        
         setWorkspacesLoaded(true);
       } catch (err: any) {
         console.error("Error fetching workspaces:", err);
@@ -195,7 +216,22 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
     };
 
     fetchWorkspaces();
-  }, [user, getToken, dispatch, selectedWorkspace]);
+  }, [user, getToken, dispatch]); // Remove selectedWorkspace dependency
+
+  // Handle workspace selection logic separately
+  useEffect(() => {
+    if (!workspacesLoaded || workspaces.length === 0) return;
+
+    // Clear selected workspace if it's not in the new list (org changed)
+    if (selectedWorkspace && !workspaces.find(w => w.id === selectedWorkspace.id)) {
+      dispatch(setSelectedWorkspaceId(''));
+    }
+    
+    // Auto-select first workspace if none selected and we have workspaces
+    if (!selectedWorkspace && workspaces.length > 0) {
+      dispatch(setSelectedWorkspaceId(workspaces[0].id.toString()));
+    }
+  }, [workspaces, selectedWorkspace, dispatch, workspacesLoaded]);
 
   // Update selected workspace when URL changes
   useEffect(() => {
@@ -272,19 +308,35 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       </div>
       
       <nav className="flex flex-1 flex-col">
+        {/* Selected Product/Module Display */}
+        <SelectedFilterDisplay collapsed={!mobile && sidebarCollapsed} />
+        
         <ul role="list" className="flex flex-1 flex-col">
           <li className="flex-1">
             <ul role="list" className="-mx-2 space-y-1">
-              {navigation.map((item) => (
-                <li key={item.name}>
-                  <NavigationItem {...item} collapsed={!mobile && sidebarCollapsed} />
-                </li>
+              {navigation.map((item, index) => (
+                <Fragment key={item.name}>
+                  <li>
+                    <NavigationItem {...item} collapsed={!mobile && sidebarCollapsed} />
+                  </li>
+                  {/* Add divider after Products and Modules (first 2 items) if we have a filter */}
+                  {index === 1 && hasFilter && (
+                    <li>
+                      <div className="mx-2 my-4">
+                        <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                      </div>
+                    </li>
+                  )}
+                </Fragment>
               ))}
             </ul>
           </li>
           
           {/* Dev Navigation Section - aligned to bottom */}
           <li className="mt-auto">
+            <div className="mx-2 mb-4">
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+            </div>
             <div className={`text-xs font-semibold leading-6 text-gray-400 dark:text-gray-500 mb-2 ${
               sidebarCollapsed && !mobile ? 'text-center' : ''
             }`}>
@@ -320,46 +372,24 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
       </nav>
 
       <div className="mt-auto space-y-4">
-        {(!sidebarCollapsed || mobile) && (
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-            <OrganizationSwitcher 
-              hidePersonal={false}
-              appearance={{
-                baseTheme: theme === 'dark' ? 'dark' : 'light',
-                elements: {
-                  organizationSwitcherTrigger: {
-                    width: '100%',
-                    padding: '8px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    borderRadius: '6px',
-                    transition: 'all 0.2s ease',
-                    backgroundColor: 'transparent',
-                    color: theme === 'dark' ? '#d1d5db' : '#4b5563',
-                    '&:hover': {
-                      backgroundColor: theme === 'dark' ? '#1f2937' : '#f9fafb',
-                      color: theme === 'dark' ? '#ffffff' : '#111827'
-                    }
-                  }
-                }
-              }}
-            />
-          </div>
-        )}
         
         <div className={`flex items-center ${sidebarCollapsed && !mobile ? 'justify-center' : 'justify-between'}`}>
           {(!sidebarCollapsed || mobile) && (
             <div className="flex items-center">
-              <UserButton 
-                appearance={{
-                  elements: {
-                    userButtonAvatarBox: "w-8 h-8",
-                    userButtonPopoverCard: "w-64"
-                  }
-                }}
-              />
-              <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Account</span>
+              {isAuthStable ? (
+                <>
+                  <UserButton 
+                    key={`user-button-${user?.id}`}
+                    appearance={userButtonAppearance}
+                  />
+                  <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Account</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />
+                  <div className="ml-3 w-16 h-4 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                </>
+              )}
             </div>
           )}
           
@@ -403,13 +433,30 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
 
     return (
       <div 
-        className={`fixed w-56 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-[9999] ${
+        className={`fixed w-64 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-[9999] ${
           sidebarCollapsed
             ? 'bottom-20 left-20'  // When collapsed, position from viewport
             : 'bottom-20 left-60'  // When expanded, position from viewport
         }`}
         data-settings-dropdown
       >
+                {/* Organization Selection */}
+                <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                  Organization
+                </div>
+                <div className="px-3 py-3">
+                  {isAuthStable ? (
+                    <OrganizationSwitcher 
+                      key={`org-switcher-${user?.id}`}
+                      hidePersonal={false}
+                      appearance={organizationSwitcherAppearance}
+                    />
+                  ) : (
+                    <div className="h-10 bg-gray-100 dark:bg-gray-700 rounded-md animate-pulse" />
+                  )}
+                </div>
+                <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                
                 {/* Workspace Selection */}
                 {workspacesLoaded ? (
                   <>
@@ -571,7 +618,14 @@ const ApplicationShell: React.FC<ApplicationShellProps> = ({ children }) => {
                 </h1>
               </div>
               <div className="ml-4 flex items-center md:ml-6">
-                <UserButton />
+                {isAuthStable ? (
+                  <UserButton 
+                    key={`mobile-user-button-${user?.id}`}
+                    appearance={userButtonAppearance} 
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />
+                )}
               </div>
             </div>
           </div>
