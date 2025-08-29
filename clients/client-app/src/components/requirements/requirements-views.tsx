@@ -10,6 +10,7 @@ import {
   ChevronDownIcon
 } from "@heroicons/react/24/outline";
 import axios from "axios";
+import { apiUrl } from "../../utils/api";
 import LoadingSpinner from "../ui/loading-spinner";
 import ErrorMessage from "../ui/error-message";
 
@@ -111,7 +112,7 @@ const RequirementsViews = ({
       params.append('limit', '1000');
 
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/requirements/?${params}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/requirements?${params}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }

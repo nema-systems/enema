@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { apiUrl } from "../utils/api";
 import { 
   ArrowLeftIcon,
   CubeIcon,
@@ -47,7 +48,7 @@ const ModuleDetail = () => {
     try {
       const token = await getToken({ template: "default" });
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -66,7 +67,7 @@ const ModuleDetail = () => {
       const token = await getToken({ template: "default" });
       
       const response = await axios.get(
-        `http://localhost:8000/api/v1/workspaces/${workspaceId}/modules/${moduleId}`,
+        apiUrl(`/api/v1/workspaces/${workspaceId}/modules/${moduleId}`),
         {
           headers: { Authorization: `Bearer ${token}` },
         }

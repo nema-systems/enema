@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { apiUrl } from '../utils/api';
 import {
   PlusIcon,
   PencilIcon,
@@ -47,7 +48,7 @@ const DevWorkspaceManager: React.FC = () => {
       setError(null);
       const token = await getToken({ template: 'default' });
       
-      const response = await axios.get('http://localhost:8000/api/v1/workspaces/', {
+      const response = await axios.get(apiUrl('/api/v1/workspaces'), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -79,7 +80,7 @@ const DevWorkspaceManager: React.FC = () => {
       if (editingWorkspace) {
         // Update existing workspace
         await axios.put(
-          `http://localhost:8000/api/v1/workspaces/${editingWorkspace.id}`,
+          apiUrl(`/api/v1/workspaces/${editingWorkspace.id}`),
           payload,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -87,7 +88,7 @@ const DevWorkspaceManager: React.FC = () => {
         );
       } else {
         // Create new workspace
-        await axios.post('http://localhost:8000/api/v1/workspaces/', payload, {
+        await axios.post(apiUrl('/api/v1/workspaces'), payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
@@ -116,7 +117,7 @@ const DevWorkspaceManager: React.FC = () => {
     try {
       const token = await getToken({ template: 'default' });
       
-      await axios.delete(`http://localhost:8000/api/v1/workspaces/${workspace.id}`, {
+      await axios.delete(apiUrl(`/api/v1/workspaces/${workspace.id}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       
