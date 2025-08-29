@@ -106,7 +106,9 @@ class Settings(BaseSettings):
         """Get CORS origin regex pattern for flexible matching"""
         if self.is_production:
             # Allow Vercel domains with pattern matching including wildcards
-            return r"^https://(?:.*\.)?(?:nema-frontend|nema-systems)(?:-git-[a-zA-Z0-9-]+)?\.vercel\.app$"
+            # Matches: nema-frontend.vercel.app, nema-systems.vercel.app
+            # And preview URLs like: nema-frontend-mth9k6kx2-nema-systems.vercel.app
+            return r"^https://(?:nema-frontend|nema-systems)(?:-[a-zA-Z0-9]+)*(?:-nema-systems)?\.vercel\.app$"
         else:
             # No regex for development
             return ""
